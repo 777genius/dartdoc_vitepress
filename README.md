@@ -20,9 +20,8 @@ The fork adds a `--format vitepress` option while keeping full backward compatib
 
 ```bash
 # From this fork (recommended)
-dart pub global activate dartdoc \
-  --source git \
-  --git-url https://github.com/777genius/dartdoc_vitepress.git \
+dart pub global activate \
+  --source git https://github.com/777genius/dartdoc_vitepress.git \
   --git-ref main
 ```
 
@@ -110,7 +109,7 @@ jobs:
           cache-dependency-path: docs-site/package-lock.json
 
       - name: Install dartdoc-vitepress
-        run: dart pub global activate dartdoc --source git --git-url https://github.com/777genius/dartdoc_vitepress.git --git-ref main
+        run: dart pub global activate --source git https://github.com/777genius/dartdoc_vitepress.git --git-ref main
 
       - name: Generate API docs
         run: dart pub global run dartdoc --format vitepress --output docs-site
