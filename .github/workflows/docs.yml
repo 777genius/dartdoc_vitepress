@@ -2,7 +2,7 @@ name: Deploy Documentation
 
 on:
   push:
-    branches: [feat/vitepress-backend]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
