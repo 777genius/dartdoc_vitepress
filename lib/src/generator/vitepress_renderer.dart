@@ -53,8 +53,10 @@ String escapeGenerics(String text) =>
 /// Use this instead of [escapeGenerics] when the text is inside HTML elements
 /// (e.g. `<span>`, `<a>` tags in breadcrumbs), where markdown `\<` escaping
 /// does not work and `&lt;`/`&gt;` entities are required.
-String htmlEscapeGenerics(String text) =>
-    text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+String htmlEscapeGenerics(String text) => text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
 
 // ---------------------------------------------------------------------------
 // Testable string helpers.
@@ -84,8 +86,9 @@ class _MarkdownPageBuilder {
 
   /// Writes the YAML frontmatter block.
   ///
-  /// Every generated page disables `editLink`, `lastUpdated`, `prev`, and
-  /// `next` because these are auto-generated API pages.
+  /// Every generated page disables `editLink`, `prev`, and `next` because
+  /// these are auto-generated API pages. `lastUpdated` is inherited from
+  /// the site config (enabled by default).
   void writeFrontmatter({
     required String title,
     required String description,
@@ -101,7 +104,6 @@ class _MarkdownPageBuilder {
       _buffer.writeln('outline: [${outline.join(', ')}]');
     }
     _buffer.writeln('editLink: false');
-    _buffer.writeln('lastUpdated: false');
     _buffer.writeln('prev: false');
     _buffer.writeln('next: false');
     _buffer.writeln('---');
@@ -127,14 +129,28 @@ class _MarkdownPageBuilder {
     _buffer.writeln();
   }
 
-  /// Writes a top-level heading (h1).
-  void writeH1(String text, {bool deprecated = false}) {
+  /// Writes a top-level heading (h1) with optional badges.
+  void writeH1(
+    String text, {
+    bool deprecated = false,
+    List<String> badges = const [],
+  }) {
+    final escaped = escapeGenerics(text);
+    final buf = StringBuffer('# ');
+
     if (deprecated) {
-      _buffer.writeln('# ~~${escapeGenerics(text)}~~ '
-          '<Badge type="warning" text="deprecated" />');
+      buf.write('~~$escaped~~ ');
+      buf.write('<Badge type="warning" text="deprecated" /> ');
     } else {
-      _buffer.writeln('# ${escapeGenerics(text)}');
+      buf.write('$escaped ');
     }
+
+    for (final badge in badges) {
+      buf.write(badge);
+      buf.write(' ');
+    }
+
+    _buffer.writeln(buf.toString().trimRight());
     _buffer.writeln();
   }
 
@@ -176,6 +192,48 @@ class _MarkdownPageBuilder {
     _buffer.writeln(':::warning DEPRECATED');
     if (message.isNotEmpty) {
       _buffer.writeln(message);
+    }
+    _buffer.writeln(':::');
+    _buffer.writeln();
+  }
+
+  /// Writes an info container (blue) for reference sections like
+  /// "Implementers", "Superclass Constraints", "Available Extensions".
+  void writeInfoContainer(String title, List<String> items) {
+    if (items.isEmpty) return;
+    _buffer.writeln(':::info $title');
+    for (final item in items) {
+      _buffer.writeln('- $item');
+    }
+    _buffer.writeln(':::');
+    _buffer.writeln();
+  }
+
+  /// Writes a tip container (green) for best practices and important notes.
+  void writeTipContainer(String title, String content) {
+    _buffer.writeln(':::tip $title');
+    if (content.isNotEmpty) {
+      _buffer.writeln(content);
+    }
+    _buffer.writeln(':::');
+    _buffer.writeln();
+  }
+
+  /// Writes a collapsible details container for source code, parameters, etc.
+  void writeDetailsContainer(String summary, String content) {
+    _buffer.writeln(':::details $summary');
+    if (content.isNotEmpty) {
+      _buffer.writeln(content);
+    }
+    _buffer.writeln(':::');
+    _buffer.writeln();
+  }
+
+  /// Writes a danger container (red) for breaking changes.
+  void writeDangerContainer(String title, String content) {
+    _buffer.writeln(':::danger $title');
+    if (content.isNotEmpty) {
+      _buffer.writeln(content);
     }
     _buffer.writeln(':::');
     _buffer.writeln();
@@ -231,6 +289,25 @@ final _leadingH1RegExp = RegExp(r'^#\s+(.+?)(\r?\n|$)');
 // ---------------------------------------------------------------------------
 // Shared rendering helpers.
 // ---------------------------------------------------------------------------
+
+/// Builds VitePress Badge strings for a container's modifiers.
+///
+/// Skips modifiers that are already in the declaration (e.g., "class", "enum")
+/// and filters using the `hideIfPresent` rules. Returns a list of Badge HTML
+/// strings like `<Badge type="info" text="sealed" />`.
+List<String> _buildModifierBadges(InheritingContainer container) {
+  final badges = <String>[];
+  final modifiers = container.containerModifiers;
+
+  for (final modifier in modifiers) {
+    // Skip modifiers that should be hidden when another modifier is present
+    if (modifier.hideIfPresent.any(modifiers.contains)) continue;
+
+    badges.add('<Badge type="info" text="${modifier.displayName}" />');
+  }
+
+  return badges;
+}
 
 /// Builds a markdown link for a documentable element.
 ///
@@ -572,10 +649,10 @@ void _renderImplementors(
   final implementors = container.publicImplementersSorted;
   if (implementors.isEmpty) return;
 
-  builder.writeH2('Implementers');
-  for (final impl in implementors) {
-    builder.writeParagraph('- ${_markdownLink(impl, paths)}');
-  }
+  builder.writeInfoContainer(
+    'Implementers',
+    implementors.map((impl) => _markdownLink(impl, paths)).toList(),
+  );
 }
 
 /// Renders the "Available Extensions" section for a class.
@@ -587,10 +664,10 @@ void _renderAvailableExtensions(
   final extensions = container.potentiallyApplicableExtensionsSorted;
   if (extensions.isEmpty) return;
 
-  builder.writeH2('Available Extensions');
-  for (final ext in extensions) {
-    builder.writeParagraph('- ${_markdownLink(ext, paths)}');
-  }
+  builder.writeInfoContainer(
+    'Available Extensions',
+    extensions.map((ext) => _markdownLink(ext, paths)).toList(),
+  );
 }
 
 /// Renders a library overview table for a specific element kind group.
@@ -1074,7 +1151,11 @@ String renderClassPage(
     (nameWithGenerics, null),
   ]);
 
-  builder.writeH1(nameWithGenerics, deprecated: clazz.isDeprecated);
+  builder.writeH1(
+    nameWithGenerics,
+    deprecated: clazz.isDeprecated,
+    badges: _buildModifierBadges(clazz),
+  );
 
   // Declaration line
   builder.writeCodeBlock(_buildContainerDeclaration(clazz));
@@ -1130,7 +1211,11 @@ String renderEnumPage(
     (nameWithGenerics, null),
   ]);
 
-  builder.writeH1(nameWithGenerics, deprecated: enumeration.isDeprecated);
+  builder.writeH1(
+    nameWithGenerics,
+    deprecated: enumeration.isDeprecated,
+    badges: _buildModifierBadges(enumeration),
+  );
 
   // Declaration line
   builder.writeCodeBlock(_buildContainerDeclaration(enumeration));
@@ -1205,7 +1290,11 @@ String renderMixinPage(
     (nameWithGenerics, null),
   ]);
 
-  builder.writeH1(nameWithGenerics, deprecated: mixin_.isDeprecated);
+  builder.writeH1(
+    nameWithGenerics,
+    deprecated: mixin_.isDeprecated,
+    badges: _buildModifierBadges(mixin_),
+  );
 
   // Declaration line
   final declaration = _buildMixinDeclaration(mixin_);
@@ -1235,11 +1324,10 @@ String renderMixinPage(
   // Superclass constraints
   final constraints = mixin_.publicSuperclassConstraints.toList();
   if (constraints.isNotEmpty) {
-    builder.writeH2('Superclass Constraints');
-    for (final constraint in constraints) {
-      builder.writeParagraph(
-          '- ${escapeGenerics(constraint.nameWithGenericsPlain)}');
-    }
+    builder.writeInfoContainer(
+      'Superclass Constraints',
+      constraints.map((c) => escapeGenerics(c.nameWithGenericsPlain)).toList(),
+    );
   }
 
   // Standard container members
@@ -1325,7 +1413,11 @@ String renderExtensionTypePage(
     (nameWithGenerics, null),
   ]);
 
-  builder.writeH1(nameWithGenerics, deprecated: et.isDeprecated);
+  builder.writeH1(
+    nameWithGenerics,
+    deprecated: et.isDeprecated,
+    badges: _buildModifierBadges(et),
+  );
 
   // Declaration line
   final declaration = _buildExtensionTypeDeclaration(et);

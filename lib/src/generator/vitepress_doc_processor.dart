@@ -12,6 +12,7 @@ library;
 
 import 'package:dartdoc/src/comment_references/model_comment_reference.dart';
 import 'package:dartdoc/src/generator/vitepress_paths.dart';
+import 'package:dartdoc/src/logging.dart';
 import 'package:dartdoc/src/matching_link_result.dart';
 import 'package:dartdoc/src/model/comment_referable.dart';
 import 'package:dartdoc/src/model/model.dart';
@@ -127,7 +128,12 @@ class VitePressDocProcessor {
   /// The path resolver, used for computing VitePress URLs for cross-references.
   final VitePressPathResolver paths;
 
-  VitePressDocProcessor(this.packageGraph, this.paths);
+  /// Additional hostnames whose `<iframe>` elements are preserved by
+  /// [sanitizeHtml]. YouTube and DartPad hosts are always allowed.
+  final Set<String> allowedIframeHosts;
+
+  VitePressDocProcessor(this.packageGraph, this.paths,
+      {this.allowedIframeHosts = const {}});
 
   // ---------------------------------------------------------------------------
   // Pre-compiled patterns for sanitizeHtml.
@@ -271,8 +277,20 @@ class VitePressDocProcessor {
 
     final nodes = document.parse(text);
     final rendered = MarkdownRenderer().render(nodes);
-    return sanitizeHtml(rendered);
+    return sanitizeHtml(rendered, extraAllowedHosts: allowedIframeHosts);
   }
+
+  /// Hostnames always allowed for `<iframe>` embeds.
+  static const _builtinAllowedHosts = {
+    'youtube.com',
+    'www.youtube.com',
+    'youtube-nocookie.com',
+    'www.youtube-nocookie.com',
+    'dartpad.dev',
+    'www.dartpad.dev',
+    'dartpad.cn',
+    'www.dartpad.cn',
+  };
 
   /// Strips dangerous HTML constructs from rendered documentation.
   ///
@@ -282,36 +300,41 @@ class VitePressDocProcessor {
   /// - Null bytes (bypass prevention)
   /// - `<script>` and `<style>` tags and their content
   /// - Dangerous embed elements (`<embed>`, `<object>`, `<applet>`, `<form>`)
-  /// - `<iframe>` tags that are NOT YouTube embeds
+  /// - `<iframe>` tags whose host is not in the allowed set
   /// - `javascript:` URLs in href/src attributes
   /// - Inline event handlers (`on*=`)
-  static String sanitizeHtml(String html) {
+  ///
+  /// [extraAllowedHosts] adds hostnames to the built-in whitelist
+  /// (YouTube, DartPad). Configured via `allowedIframeHosts` in
+  /// `dartdoc_options.yaml`.
+  static String sanitizeHtml(String html,
+      {Set<String> extraAllowedHosts = const {}}) {
     // 1. Remove null bytes (bypass prevention).
     html = html.replaceAll('\x00', '');
 
     // 2. Remove <script> tags (handle whitespace in tag name: `< script>`).
-    html = html.replaceAll(_scriptOpenClose, '');
-    html = html.replaceAll(_scriptSelfClose, '');
+    html = _warnOnRemoval(html, _scriptOpenClose, '<script>');
+    html = _warnOnRemoval(html, _scriptSelfClose, '<script/>');
 
     // 3. Remove <style> tags.
-    html = html.replaceAll(_styleOpenClose, '');
+    html = _warnOnRemoval(html, _styleOpenClose, '<style>');
 
     // 4. Remove dangerous embed elements.
     for (final tag in ['embed', 'object', 'applet', 'form', 'svg']) {
-      html = html.replaceAll(_dangerousEmbedOpenClose[tag]!, '');
-      html = html.replaceAll(_dangerousEmbedSelfClose[tag]!, '');
+      html = _warnOnRemoval(html, _dangerousEmbedOpenClose[tag]!, '<$tag>');
+      html = _warnOnRemoval(html, _dangerousEmbedSelfClose[tag]!, '<$tag/>');
     }
 
     // 4b. Remove <base> tags (can hijack page base URL).
-    html = html.replaceAll(_baseTag, '');
+    html = _warnOnRemoval(html, _baseTag, '<base>');
 
     // 4c. Remove <meta> tags (can redirect via http-equiv="refresh").
-    html = html.replaceAll(_metaTag, '');
+    html = _warnOnRemoval(html, _metaTag, '<meta>');
 
     // 4d. Remove <link> tags (can load external CSS for exfiltration).
-    html = html.replaceAll(_linkTag, '');
+    html = _warnOnRemoval(html, _linkTag, '<link>');
 
-    // 5. Remove <iframe> tags that are NOT YouTube/YouTube-nocookie embeds.
+    // 5. Remove <iframe> tags whose host is not in the allowed set.
     //    Check the src attribute specifically to prevent bypass via other
     //    attributes (e.g. title="youtube.com").
     html = html.replaceAllMapped(
@@ -322,41 +345,65 @@ class VitePressDocProcessor {
         if (srcMatch != null) {
           final src = srcMatch.group(1)!;
           final uri = Uri.tryParse(src);
-          if (uri != null) {
+          if (uri != null && (uri.scheme == 'https' || uri.scheme == 'http')) {
             final host = uri.host.toLowerCase();
-            final isYouTube = host == 'youtube.com' ||
-                host == 'www.youtube.com' ||
-                host == 'youtube-nocookie.com' ||
-                host == 'www.youtube-nocookie.com';
-            if (isYouTube && (uri.scheme == 'https' || uri.scheme == 'http')) {
-              return tag; // Keep YouTube embeds.
+            if (_builtinAllowedHosts.contains(host) ||
+                extraAllowedHosts.contains(host)) {
+              return tag; // Keep allowed iframe embeds.
             }
+            logWarning('sanitizeHtml: removed <iframe> with host "$host". '
+                'To allow it, add "$host" to the allowedIframeHosts option '
+                'in dartdoc_options.yaml.');
+          } else {
+            logWarning(
+                'sanitizeHtml: removed <iframe> with disallowed src: $src');
           }
+        } else {
+          logWarning('sanitizeHtml: removed <iframe> without src attribute');
         }
-        return ''; // Remove all other iframes.
+        return '';
       },
     );
 
     // 6. Remove javascript: URLs (use replaceAllMapped for backreference).
     html = html.replaceAllMapped(
       _javascriptUrl,
-      (match) => '${match[1]}="',
+      (match) {
+        logWarning('sanitizeHtml: removed javascript: URL');
+        return '${match[1]}="';
+      },
     );
 
     // 6b. Remove data: URIs in href/src (can embed HTML/JS).
     html = html.replaceAllMapped(
       _dataUrl,
-      (match) => '${match[1]}="',
+      (match) {
+        logWarning('sanitizeHtml: removed data: URI');
+        return '${match[1]}="';
+      },
     );
 
     // 7. Remove inline event handlers (on*="...", on*='...', on*=value).
-    html = html.replaceAll(_eventHandler, '');
+    html = _warnOnRemoval(html, _eventHandler, 'inline event handler');
 
     // 8. Escape Vue template interpolation (VitePress renders md as Vue SFC).
     html = html.replaceAll('{{', r'\{\{');
     html = html.replaceAll('}}', r'\}\}');
 
     return html;
+  }
+
+  /// Removes all matches of [pattern] from [html], logging a warning
+  /// for each occurrence with the given [description].
+  static String _warnOnRemoval(
+      String html, Pattern pattern, String description) {
+    return html.replaceAllMapped(
+      pattern,
+      (match) {
+        logWarning('sanitizeHtml: removed $description tag');
+        return '';
+      },
+    );
   }
 
   /// Resolves a single bracket reference `[referenceText]` found in a doc

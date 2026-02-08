@@ -77,6 +77,34 @@ class VitePressInitGenerator {
       placeholders: placeholders,
     );
 
+    // Theme customization (glassmorphism nav)
+    _writeTemplateIfAbsent(
+      templateDir: templateDir,
+      templateFile: p.join('theme', 'index.ts'),
+      outputFile: p.join('.vitepress', 'theme', 'index.ts'),
+      placeholders: placeholders,
+    );
+    _writeTemplateIfAbsent(
+      templateDir: templateDir,
+      templateFile: p.join('theme', 'custom.css'),
+      outputFile: p.join('.vitepress', 'theme', 'custom.css'),
+      placeholders: placeholders,
+    );
+
+    // DartPad interactive playground component and markdown-it plugin
+    _writeTemplateIfAbsent(
+      templateDir: templateDir,
+      templateFile: p.join('theme', 'components', 'DartPad.vue'),
+      outputFile: p.join('.vitepress', 'theme', 'components', 'DartPad.vue'),
+      placeholders: placeholders,
+    );
+    _writeTemplateIfAbsent(
+      templateDir: templateDir,
+      templateFile: p.join('theme', 'plugins', 'dartpad.ts'),
+      outputFile: p.join('.vitepress', 'theme', 'plugins', 'dartpad.ts'),
+      placeholders: placeholders,
+    );
+
     // Generate empty guide-sidebar.ts stub so config.ts import works
     // even before the first full generation run.
     // Written directly to disk (not through writer) because the full

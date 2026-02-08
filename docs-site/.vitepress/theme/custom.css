@@ -1,0 +1,12 @@
+:root {
+  --vp-nav-bg-color: rgba(255, 255, 255, 0.5);
+}
+
+.dark {
+  --vp-nav-bg-color: rgba(30, 30, 32, 0.5);
+}
+
+.VPNavBar {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}

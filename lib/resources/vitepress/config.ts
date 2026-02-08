@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitepress'
 import { apiSidebar } from './generated/api-sidebar'
 import { guideSidebar } from './generated/guide-sidebar'
+import { dartpadPlugin } from './theme/plugins/dartpad'
 
 export default defineConfig({
   title: '{{packageName}} API',
@@ -8,7 +9,16 @@ export default defineConfig({
   // Cross-references to SDK types (dart:core, dart:collection) produce
   // dead links since we only generate docs for this package.
   ignoreDeadLinks: true,
+  // Show "Last updated" timestamps on pages (requires git history).
+  lastUpdated: true,
+  markdown: {
+    config: (md) => {
+      md.use(dartpadPlugin)
+    },
+  },
   themeConfig: {
+    // "On this page" outline: show h2–h4 with nested tree structure.
+    outline: { level: [2, 4] },
     // Full-text search powered by MiniSearch (built into VitePress).
     search: {
       provider: 'local',

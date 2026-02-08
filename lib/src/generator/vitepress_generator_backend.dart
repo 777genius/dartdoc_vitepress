@@ -48,6 +48,7 @@ class VitePressGeneratorBackend extends GeneratorBackend {
   final List<String> _guideDirs;
   final List<String> _guideInclude;
   final List<String> _guideExclude;
+  final Set<String> _allowedIframeHosts;
 
   /// Tracks all file paths written during this generation run.
   ///
@@ -72,6 +73,7 @@ class VitePressGeneratorBackend extends GeneratorBackend {
     List<String> guideDirs = const ['doc', 'docs'],
     List<String> guideInclude = const [],
     List<String> guideExclude = const [],
+    List<String> allowedIframeHosts = const [],
   })  : _paths = VitePressPathResolver(),
         _outputPath = outputPath,
         _packageName = packageName,
@@ -79,6 +81,7 @@ class VitePressGeneratorBackend extends GeneratorBackend {
         _guideDirs = guideDirs,
         _guideInclude = guideInclude,
         _guideExclude = guideExclude,
+        _allowedIframeHosts = Set.of(allowedIframeHosts),
         super(options, _NoOpTemplates(), writer, resourceProvider);
 
   // ---------------------------------------------------------------------------
@@ -94,7 +97,8 @@ class VitePressGeneratorBackend extends GeneratorBackend {
   void generatePackage(PackageGraph packageGraph, Package package) {
     // Initialize dependencies that require the PackageGraph.
     _paths.initFromPackageGraph(packageGraph);
-    _docs = VitePressDocProcessor(packageGraph, _paths);
+    _docs = VitePressDocProcessor(packageGraph, _paths,
+        allowedIframeHosts: _allowedIframeHosts);
     _sidebar = VitePressSidebarGenerator(_paths);
 
     final isMultiPackage = packageGraph.localPackages.length > 1;
@@ -131,6 +135,7 @@ class VitePressGeneratorBackend extends GeneratorBackend {
       scanDirs: _guideDirs,
       include: _guideInclude,
       exclude: _guideExclude,
+      allowedIframeHosts: _allowedIframeHosts,
     );
     var guideEntries = guideGen.collectGuideEntries(
       packageGraph: packageGraph,

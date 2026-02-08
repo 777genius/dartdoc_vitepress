@@ -28,3 +28,7 @@ docs-site/.vitepress/cache/
 docs-site/node_modules/
 docs-site/guide/*.md
 !docs-site/guide/index.md
+
+# Testing: generated VitePress docs-site output
+testing/**/docs-site/
+**/node_modules/

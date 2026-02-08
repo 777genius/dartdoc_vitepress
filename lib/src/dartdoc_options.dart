@@ -1196,6 +1196,9 @@ class DartdocOptionContext extends DartdocOptionContextBase
 
   bool get includeSource => optionSet['includeSource'].valueAt(context);
 
+  List<String> get allowedIframeHosts =>
+      optionSet['allowedIframeHosts'].valueAt(context);
+
   bool get injectHtml => optionSet['injectHtml'].valueAt(context);
 
   bool get sanitizeHtml => optionSet['sanitizeHtml'].valueAt(context);
@@ -1463,6 +1466,12 @@ List<DartdocOption> createDartdocOptions(
         help: 'Names of libraries to document.', splitCommas: true),
     DartdocOptionArgOnly<bool>('includeSource', true, resourceProvider,
         help: 'Show source code blocks.', negatable: true),
+    DartdocOptionArgFile<List<String>>(
+        'allowedIframeHosts', [], resourceProvider,
+        help: 'Additional hostnames whose <iframe> elements are preserved '
+            'during HTML sanitization. YouTube and DartPad hosts are always '
+            'allowed. Example: codepen.io,stackblitz.com',
+        splitCommas: true),
     DartdocOptionArgOnly<bool>('injectHtml', false, resourceProvider,
         help: 'Allow the use of the `{@inject-html}` directive to inject raw '
             'HTML into dartdoc output.'),

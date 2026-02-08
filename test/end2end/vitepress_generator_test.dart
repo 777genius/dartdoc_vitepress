@@ -136,6 +136,19 @@ void main() {
         expect(_outputExists(outDir, 'guide/index.md'), isTrue);
       });
 
+      test('DartPad component is scaffolded', () {
+        expect(
+          _outputExists(outDir, '.vitepress/theme/components/DartPad.vue'),
+          isTrue,
+        );
+      });
+
+      test('theme index.ts imports DartPad', () {
+        var content = _readOutput(outDir, '.vitepress/theme/index.ts');
+        expect(content, contains('DartPad'));
+        expect(content, contains('enhanceApp'));
+      });
+
       test('no member subdirectories (members are inline)', () {
         expect(_dirExists(outDir, 'api/ex/Apple'), isFalse);
       });
@@ -152,6 +165,17 @@ void main() {
         expect(content, startsWith('---'));
         expect(content, contains('title:'));
         expect(content, contains('editLink: false'));
+      });
+
+      test('frontmatter does not contain lastUpdated: false', () {
+        var content = _readOutput(outDir, 'api/ex/Apple.md');
+        expect(content, isNot(contains('lastUpdated: false')));
+      });
+
+      test('regular class has no modifier badges in heading', () {
+        var content = _readOutput(outDir, 'api/ex/Apple.md');
+        // Apple is a regular class — no info badges expected
+        expect(content, isNot(contains('<Badge type="info"')));
       });
 
       test('class page has Constructors section', () {
@@ -206,13 +230,13 @@ void main() {
             _readOutput(outDir, 'api/fake/NewStyleMixinCallingSuper.md');
         expect(content,
             matches(RegExp(r'^# NewStyleMixinCallingSuper', multiLine: true)));
-        expect(content, contains('## Superclass Constraints'));
+        expect(content, contains(':::info Superclass Constraints'));
       });
 
       test('mixin page has Implementers section when implemented', () {
         // GenericMixin is used by classes — should have Implementers
         var content = _readOutput(outDir, 'api/fake/GenericMixin.md');
-        expect(content, contains('## Implementers'));
+        expect(content, contains(':::info Implementers'));
       });
 
       // -- Extension page --------------------------------------------------
@@ -330,6 +354,11 @@ void main() {
         var content = _readOutput(outDir, 'api/base_class/Constraints.md');
         expect(content, matches(RegExp(r'^# Constraints', multiLine: true)));
         expect(content, contains('abstract'));
+      });
+
+      test('abstract class has abstract badge in heading', () {
+        var content = _readOutput(outDir, 'api/base_class/Constraints.md');
+        expect(content, contains('<Badge type="info" text="abstract" />'));
       });
 
       // -- Class with implements -------------------------------------------
@@ -829,9 +858,17 @@ void main() {
       test('abstract class page has Implementers section', () {
         // Cat is abstract with implementers ConstantCat and Dog
         var content = _readOutput(outDir, 'api/ex/Cat.md');
-        expect(content, contains('## Implementers'));
+        expect(content, contains(':::info Implementers'));
         expect(content, contains('ConstantCat'));
         expect(content, contains('Dog'));
+      });
+
+      // -- Available Extensions container (:::info) --------------------------
+
+      test('class with extensions has info container for extensions', () {
+        // Apple has AppleExtension — should have :::info Available Extensions
+        var content = _readOutput(outDir, 'api/ex/Apple.md');
+        expect(content, contains(':::info Available Extensions'));
       });
 
       // -- Source link (P0-5) ------------------------------------------------
@@ -981,6 +1018,44 @@ void main() {
       test('base mixin shows base mixin modifier', () {
         var content = _readOutput(outDir, 'api/class_modifiers.dart/O.md');
         expect(content, contains('base mixin'));
+      });
+
+      // -- Modifier badges in headings -----------------------------------------
+
+      test('sealed class has sealed badge in heading', () {
+        var content = _readOutput(outDir, 'api/class_modifiers.dart/E.md');
+        expect(content, contains('<Badge type="info" text="sealed" />'));
+      });
+
+      test('base class has base badge in heading', () {
+        var content = _readOutput(outDir, 'api/class_modifiers.dart/B.md');
+        expect(content, contains('<Badge type="info" text="base" />'));
+      });
+
+      test('interface class has interface badge in heading', () {
+        var content = _readOutput(outDir, 'api/class_modifiers.dart/C.md');
+        expect(content, contains('<Badge type="info" text="interface" />'));
+      });
+
+      test('final class has final badge in heading', () {
+        var content = _readOutput(outDir, 'api/class_modifiers.dart/D.md');
+        expect(content, contains('<Badge type="info" text="final" />'));
+      });
+
+      test('sealed class does NOT show abstract badge', () {
+        var content = _readOutput(outDir, 'api/class_modifiers.dart/E.md');
+        expect(
+            content, isNot(contains('<Badge type="info" text="abstract" />')));
+      });
+
+      test('base mixin has base badge in heading', () {
+        var content = _readOutput(outDir, 'api/class_modifiers.dart/O.md');
+        expect(content, contains('<Badge type="info" text="base" />'));
+      });
+
+      test('mixin class has mixin badge in heading', () {
+        var content = _readOutput(outDir, 'api/class_modifiers.dart/J.md');
+        expect(content, contains('<Badge type="info" text="mixin" />'));
       });
 
       // -- Record types ------------------------------------------------------

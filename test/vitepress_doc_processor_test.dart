@@ -141,6 +141,72 @@ void main() {
       );
     });
 
+    // -- DartPad iframe whitelist --------------------------------------------
+
+    test('keeps DartPad iframe', () {
+      const dartpad =
+          '<iframe src="https://dartpad.dev/?embed=true&theme=dark"></iframe>';
+      expect(
+        VitePressDocProcessor.sanitizeHtml('a${dartpad}b'),
+        equals('a${dartpad}b'),
+      );
+    });
+
+    test('keeps DartPad China mirror iframe', () {
+      const dartpad = '<iframe src="https://dartpad.cn/?embed=true"></iframe>';
+      expect(
+        VitePressDocProcessor.sanitizeHtml('a${dartpad}b'),
+        equals('a${dartpad}b'),
+      );
+    });
+
+    test('keeps www.dartpad.dev iframe', () {
+      const dartpad =
+          '<iframe src="https://www.dartpad.dev/?embed=true"></iframe>';
+      expect(
+        VitePressDocProcessor.sanitizeHtml('a${dartpad}b'),
+        equals('a${dartpad}b'),
+      );
+    });
+
+    test('removes iframe with dartpad in non-src attribute', () {
+      expect(
+        VitePressDocProcessor.sanitizeHtml(
+            'a<iframe title="dartpad.dev" src="https://evil.com/x"></iframe>b'),
+        equals('ab'),
+      );
+    });
+
+    // -- Configurable iframe whitelist ----------------------------------------
+
+    test('extraAllowedHosts keeps custom iframe', () {
+      const custom = '<iframe src="https://codepen.io/embed/abc"></iframe>';
+      expect(
+        VitePressDocProcessor.sanitizeHtml('a${custom}b',
+            extraAllowedHosts: {'codepen.io'}),
+        equals('a${custom}b'),
+      );
+    });
+
+    test('extraAllowedHosts does not affect non-matching iframes', () {
+      expect(
+        VitePressDocProcessor.sanitizeHtml(
+            'a<iframe src="https://evil.com/x"></iframe>b',
+            extraAllowedHosts: {'codepen.io'}),
+        equals('ab'),
+      );
+    });
+
+    test('builtin hosts work without extraAllowedHosts', () {
+      const youtube =
+          '<iframe src="https://www.youtube.com/embed/abc"></iframe>';
+      const dartpad = '<iframe src="https://dartpad.dev/?embed=true"></iframe>';
+      expect(
+        VitePressDocProcessor.sanitizeHtml('$youtube$dartpad'),
+        equals('$youtube$dartpad'),
+      );
+    });
+
     // -- javascript: URL removal --------------------------------------------
 
     test('removes javascript: in href', () {

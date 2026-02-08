@@ -341,6 +341,7 @@ Generator initVitePressGenerator(
     guideDirs: context.guideDirs,
     guideInclude: context.guideInclude,
     guideExclude: context.guideExclude,
+    allowedIframeHosts: context.allowedIframeHosts,
   );
   return Generator(generatorBackend);
 }

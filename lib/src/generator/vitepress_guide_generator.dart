@@ -14,6 +14,9 @@ import 'package:path/path.dart' as p;
 /// Matches a markdown level-1 heading (e.g. `# My Title`).
 final _headingPattern = RegExp(r'^#\s+(.+)$');
 
+/// Matches inline markdown formatting (`**bold**`, `*italic*`, `` `code` ``).
+final _inlineMarkdown = RegExp(r'\*{1,2}|`');
+
 /// Matches hyphens or underscores for kebab/snake-case splitting.
 final _kebabSnakeDelimiter = RegExp(r'[-_]');
 
@@ -51,6 +54,7 @@ class VitePressGuideGenerator {
   final List<String> scanDirs;
   final List<RegExp> _includeRegexps;
   final List<RegExp> _excludeRegexps;
+  final Set<String> _allowedIframeHosts;
 
   /// Creates a guide generator with validated regex patterns.
   ///
@@ -61,8 +65,10 @@ class VitePressGuideGenerator {
     required this.scanDirs,
     List<String> include = const [],
     List<String> exclude = const [],
+    Set<String> allowedIframeHosts = const {},
   })  : _includeRegexps = _compilePatterns(include, 'include'),
-        _excludeRegexps = _compilePatterns(exclude, 'exclude');
+        _excludeRegexps = _compilePatterns(exclude, 'exclude'),
+        _allowedIframeHosts = allowedIframeHosts;
 
   /// Compiles regex patterns with validation.
   static List<RegExp> _compilePatterns(List<String> patterns, String label) {
@@ -104,8 +110,12 @@ class VitePressGuideGenerator {
 
           if (!matchesFilters(relativeToDocs)) continue;
 
-          final content = mdFile.readAsStringSync();
-          final sanitizedContent = VitePressDocProcessor.sanitizeHtml(content);
+          var content = mdFile.readAsStringSync();
+          // Convert [TOC] directive to VitePress syntax.
+          content = content.replaceAll(
+              RegExp(r'^\[TOC\]\s*$', multiLine: true), '[[toc]]');
+          final sanitizedContent = VitePressDocProcessor.sanitizeHtml(content,
+              extraAllowedHosts: _allowedIframeHosts);
           final title = extractTitle(content, relativeToDocs);
 
           String outputRelative;
@@ -230,7 +240,7 @@ class VitePressGuideGenerator {
     for (final line in lines) {
       final match = _headingPattern.firstMatch(line.trim());
       if (match != null) {
-        return match.group(1)!.trim();
+        return _stripInlineMarkdown(match.group(1)!.trim());
       }
     }
 
@@ -244,6 +254,10 @@ class VitePressGuideGenerator {
         .join(' ');
     return name;
   }
+
+  /// Strips inline markdown formatting from a heading title.
+  static String _stripInlineMarkdown(String title) =>
+      title.replaceAll(_inlineMarkdown, '').trim();
 
   /// Recursively collects all `.md` files in [folder].
   ///
