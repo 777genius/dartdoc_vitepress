@@ -48,6 +48,14 @@ String plainNameWithGenerics(ModelElement element) {
 String escapeGenerics(String text) =>
     text.replaceAll('<', r'\<').replaceAll('>', r'\>');
 
+/// Escapes angle brackets as HTML entities for use inside raw HTML blocks.
+///
+/// Use this instead of [escapeGenerics] when the text is inside HTML elements
+/// (e.g. `<span>`, `<a>` tags in breadcrumbs), where markdown `\<` escaping
+/// does not work and `&lt;`/`&gt;` entities are required.
+String htmlEscapeGenerics(String text) =>
+    text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+
 // ---------------------------------------------------------------------------
 // Testable string helpers.
 // ---------------------------------------------------------------------------
@@ -107,9 +115,9 @@ class _MarkdownPageBuilder {
     if (crumbs.isEmpty) return;
     final parts = crumbs.map((c) {
       if (c.$2 != null) {
-        return '<a href="${c.$2}" style="text-decoration:none;color:var(--vp-c-text-2)">${escapeGenerics(c.$1)}</a>';
+        return '<a href="${c.$2}" style="text-decoration:none;color:var(--vp-c-text-2)">${htmlEscapeGenerics(c.$1)}</a>';
       }
-      return '<span style="color:var(--vp-c-text-3)">${escapeGenerics(c.$1)}</span>';
+      return '<span style="color:var(--vp-c-text-3)">${htmlEscapeGenerics(c.$1)}</span>';
     });
     _buffer.writeln(
       '<div style="font-size:0.85em;margin-bottom:0.5em;color:var(--vp-c-text-3)">'

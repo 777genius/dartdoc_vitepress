@@ -52,7 +52,8 @@ void main() {
     });
 
     test('has a repository', () {
-      expect(p.repository, equals('https://github.com/dart-lang/dartdoc'));
+      expect(
+          p.repository, equals('https://github.com/777genius/dartdoc_vitepress'));
     });
 
     test('has a readme', () {
@@ -60,8 +61,7 @@ void main() {
       expect(
           resourceProvider
               .readAsMalformedAllowedStringSync(p.getReadmeContents()!),
-          contains(
-              'Use `dart doc` to generate HTML documentation for your Dart package.'));
+          contains('dartdoc-vitepress'));
     });
   });
 

@@ -458,7 +458,9 @@ class VitePressGeneratorBackend extends GeneratorBackend {
     _expectedFiles.add(filePath);
 
     // Incremental generation: skip write if content is unchanged.
-    final fullPath = p.join(_outputPath, filePath);
+    // Normalize the path: filePath uses POSIX separators (/) but on Windows
+    // _outputPath uses backslashes. p.normalize resolves mixed separators.
+    final fullPath = p.normalize(p.join(_outputPath, filePath));
     final existingFile = resourceProvider.getFile(fullPath);
     if (existingFile.exists) {
       try {

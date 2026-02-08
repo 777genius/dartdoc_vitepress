@@ -12,6 +12,7 @@ doc/api/
 lcov.info
 test_data/
 testing/**/doc
+!testing/test_package_with_docs/doc
 pubspec.lock
 
 *.iml
