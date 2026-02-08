@@ -9,7 +9,7 @@
 | Output format | Static HTML | VitePress Markdown site |
 | Search | Built-in (basic) | VitePress local search (MiniSearch) |
 | Theming | CSS customization | Full Vue.js theming |
-| Guide docs | Not supported | Auto-discovers `docs/` markdown files |
+| Guide docs | Not supported | Auto-discovers `doc/` & `docs/` markdown files (configurable via `--guide-dirs`) |
 | Workspace mode | Not supported | `--workspace-docs` for mono-repos |
 | Sidebar | HTML nav | Auto-generated TypeScript sidebar data |
 | Customization | Templates | Full VitePress ecosystem (Vue components, plugins) |
@@ -23,7 +23,7 @@ The fork adds a `--format vitepress` option while keeping full backward compatib
 dart pub global activate dartdoc \
   --source git \
   --git-url https://github.com/777genius/dartdoc_vitepress.git \
-  --git-ref feat/vitepress-backend
+  --git-ref main
 ```
 
 ## Quick Start
@@ -69,7 +69,7 @@ docs-site/
 │   │   ├── MyClass-class.md
 │   │   └── ...
 │   └── ...
-├── guide/                        # Copied from docs/ directory
+├── guide/                        # Copied from doc/ & docs/ directories
 │   ├── index.md                  # Created once (customizable)
 │   └── my-guide.md
 ├── index.md                      # Landing page (created once)
@@ -110,7 +110,7 @@ jobs:
           cache-dependency-path: docs-site/package-lock.json
 
       - name: Install dartdoc-vitepress
-        run: dart pub global activate dartdoc --source git --git-url https://github.com/777genius/dartdoc_vitepress.git --git-ref feat/vitepress-backend
+        run: dart pub global activate dartdoc --source git --git-url https://github.com/777genius/dartdoc_vitepress.git --git-ref main
 
       - name: Generate API docs
         run: dart pub global run dartdoc --format vitepress --output docs-site
@@ -150,6 +150,7 @@ Don't forget: **Settings → Pages → Source: GitHub Actions**.
 | `--workspace-docs` | Document all packages in a Dart workspace |
 | `--exclude-packages 'a,b,c'` | Skip specific packages |
 | `--output <dir>` | Output directory (default: `doc/api`) |
+| `--guide-dirs 'doc,docs'` | Directories to scan for guide markdown (default: `doc,docs`) |
 
 All original dartdoc options (`--exclude`, `--include`, `--header`, etc.) are still supported.
 
