@@ -455,10 +455,18 @@ class PubPackageBuilder implements PackageBuilder {
       return {basePackageRoot};
     }
 
-    var pubspecYaml = loadYaml(pubspecFile.readAsStringSync());
-    if (pubspecYaml is! YamlMap) {
-      logWarning('workspaceDocs enabled but pubspec.yaml is not a valid '
-          'YAML map at $basePackageRoot');
+    late final YamlMap pubspecYaml;
+    try {
+      var loaded = loadYaml(pubspecFile.readAsStringSync());
+      if (loaded is! YamlMap) {
+        logWarning('workspaceDocs enabled but pubspec.yaml is not a valid '
+            'YAML map at $basePackageRoot');
+        return {basePackageRoot};
+      }
+      pubspecYaml = loaded;
+    } on YamlException {
+      logWarning('workspaceDocs enabled but pubspec.yaml could not be parsed '
+          'at $basePackageRoot');
       return {basePackageRoot};
     }
 
@@ -476,8 +484,8 @@ class PubPackageBuilder implements PackageBuilder {
       var resolvedDirs = _resolveWorkspaceEntry(basePackageRoot, pattern);
 
       for (var dir in resolvedDirs) {
-        var dirPubspec = _resourceProvider
-            .getFile(_pathContext.join(dir, 'pubspec.yaml'));
+        var dirPubspec =
+            _resourceProvider.getFile(_pathContext.join(dir, 'pubspec.yaml'));
         if (!dirPubspec.exists) {
           logDebug('Workspace entry "$pattern" resolved to "$dir" but no '
               'pubspec.yaml found, skipping.');
@@ -517,8 +525,8 @@ class PubPackageBuilder implements PackageBuilder {
         pattern.contains('{');
 
     if (!isGlob) {
-      var resolved = _pathContext.normalize(
-          _pathContext.join(baseRoot, pattern));
+      var resolved =
+          _pathContext.normalize(_pathContext.join(baseRoot, pattern));
       var folder = _resourceProvider.getFolder(resolved);
       if (folder.exists) {
         return [resolved];
@@ -534,21 +542,29 @@ class PubPackageBuilder implements PackageBuilder {
     var baseFolder = _resourceProvider.getFolder(baseRoot);
 
     // Walk directories matching the glob from the base root.
-    _matchGlob(baseFolder, glob, baseRoot, results);
+    _matchGlob(baseFolder, glob, baseRoot, results, <String>{});
     return results;
   }
 
   /// Recursively matches [glob] against directories starting from [folder].
-  void _matchGlob(
-      Folder folder, Glob glob, String baseRoot, List<String> results) {
+  ///
+  /// Tracks [visited] resolved paths to prevent infinite loops from symlinks.
+  void _matchGlob(Folder folder, Glob glob, String baseRoot,
+      List<String> results, Set<String> visited) {
+    var resolvedPath = folder.resolveSymbolicLinksSync().path;
+    if (!visited.add(resolvedPath)) return;
+
     for (var child in folder.getChildren()) {
       if (child is Folder) {
+        // Skip hidden directories.
+        if (_pathContext.basename(child.path).startsWith('.')) continue;
+
         var relativePath = _pathContext.relative(child.path, from: baseRoot);
         if (glob.matches(relativePath)) {
           results.add(child.path);
         }
         // Continue searching subdirectories for patterns like 'packages/adapters/*'
-        _matchGlob(child, glob, baseRoot, results);
+        _matchGlob(child, glob, baseRoot, results, visited);
       }
     }
   }

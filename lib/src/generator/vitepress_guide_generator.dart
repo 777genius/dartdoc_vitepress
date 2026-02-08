@@ -250,7 +250,8 @@ class VitePressGuideGenerator {
   /// Tracks visited canonical paths to prevent infinite loops from symlinks.
   List<File> _collectMarkdownFiles(Folder folder, [Set<String>? visited]) {
     visited ??= {};
-    if (!visited.add(folder.path)) return [];
+    final resolvedPath = folder.resolveSymbolicLinksSync().path;
+    if (!visited.add(resolvedPath)) return [];
 
     final files = <File>[];
 

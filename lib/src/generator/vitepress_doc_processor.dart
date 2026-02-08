@@ -321,9 +321,16 @@ class VitePressDocProcessor {
         final srcMatch = _iframeSrcAttr.firstMatch(tag);
         if (srcMatch != null) {
           final src = srcMatch.group(1)!;
-          if (src.contains('youtube.com') ||
-              src.contains('youtube-nocookie.com')) {
-            return tag; // Keep YouTube embeds.
+          final uri = Uri.tryParse(src);
+          if (uri != null) {
+            final host = uri.host.toLowerCase();
+            final isYouTube = host == 'youtube.com' ||
+                host == 'www.youtube.com' ||
+                host == 'youtube-nocookie.com' ||
+                host == 'www.youtube-nocookie.com';
+            if (isYouTube && (uri.scheme == 'https' || uri.scheme == 'http')) {
+              return tag; // Keep YouTube embeds.
+            }
           }
         }
         return ''; // Remove all other iframes.
@@ -975,9 +982,11 @@ class MarkdownRenderer implements md.NodeVisitor {
     final headerRow = _tableRows.first;
     final columnCount = headerRow.length;
 
+    String escapeCell(String s) => s.replaceAll('|', r'\|');
+
     // Render header row.
     _writeToBuffer('| ');
-    _writeToBuffer(headerRow.join(' | '));
+    _writeToBuffer(headerRow.map(escapeCell).join(' | '));
     _writelnToBuffer(' |');
 
     // Render separator row with alignment.
@@ -1006,7 +1015,7 @@ class MarkdownRenderer implements md.NodeVisitor {
         columnCount,
         (i) => i < row.length ? row[i] : '',
       );
-      _writeToBuffer(paddedRow.join(' | '));
+      _writeToBuffer(paddedRow.map(escapeCell).join(' | '));
       _writelnToBuffer(' |');
     }
   }
