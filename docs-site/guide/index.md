@@ -1,0 +1,10 @@
+# Guide
+
+Welcome to the **dartdoc-vitepress** documentation.
+
+This is a fork of [dart-lang/dartdoc](https://github.com/dart-lang/dartdoc) that adds a VitePress backend for generating modern, static documentation sites.
+
+## Topics
+
+- [Dart Documentation Comment Specification](./dart-documentation-comment-specification.md)
+- [Directives](./directives.md)
