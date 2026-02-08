@@ -47,19 +47,24 @@ Dartdoc _buildVitePressDartdoc(
 
 /// Reads a file relative to [outDir] and returns its content.
 String _readOutput(Folder outDir, String relativePath) {
-  final file = _resourceProvider.getFile(p.join(outDir.path, relativePath));
+  final file =
+      _resourceProvider.getFile(p.normalize(p.join(outDir.path, relativePath)));
   expect(file.exists, isTrue, reason: 'Expected file to exist: $relativePath');
   return file.readAsStringSync();
 }
 
 /// Returns true if a file exists relative to [outDir].
 bool _outputExists(Folder outDir, String relativePath) {
-  return _resourceProvider.getFile(p.join(outDir.path, relativePath)).exists;
+  return _resourceProvider
+      .getFile(p.normalize(p.join(outDir.path, relativePath)))
+      .exists;
 }
 
 /// Returns true if a directory exists relative to [outDir].
 bool _dirExists(Folder outDir, String relativePath) {
-  return _resourceProvider.getFolder(p.join(outDir.path, relativePath)).exists;
+  return _resourceProvider
+      .getFolder(p.normalize(p.join(outDir.path, relativePath)))
+      .exists;
 }
 
 void main() {
