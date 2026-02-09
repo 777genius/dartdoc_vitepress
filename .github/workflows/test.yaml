@@ -23,7 +23,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         sdk: [3.9.0, dev]
-        job: [main, flutter, packages, sdk-docs]
+        job: [main, packages, sdk-docs]
         include:
           - os: macos-latest
             sdk: dev
@@ -31,14 +31,6 @@ jobs:
           - os: windows-latest
             sdk: dev
             job: main
-        exclude:
-            # Do not try to run flutter against the "stable" sdk,
-            # it is unlikely to work and produces uninteresting
-            # results.
-          - sdk: 3.8.0
-            job: flutter
-          - sdk: 3.8.0
-            job: sdk-docs
 
     steps:
       - name: Store date

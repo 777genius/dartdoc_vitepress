@@ -15,7 +15,7 @@ import 'package:test_process/test_process.dart';
 import '../src/test_descriptor_utils.dart' as d;
 import '../src/utils.dart';
 
-var _dartdocPath = path.canonicalize(path.join('bin', 'dartdoc.dart'));
+var _dartdocPath = path.canonicalize(path.join('bin', 'dartdoc_vitepress.dart'));
 
 /// Runs dartdoc via [TestProcess.start].
 Future<TestProcess> runDartdoc(

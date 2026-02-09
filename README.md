@@ -9,10 +9,10 @@
 | Output format | Static HTML | VitePress Markdown site |
 | Search | Built-in (basic) | VitePress local search (MiniSearch) |
 | Theming | CSS customization | Full Vue.js theming |
-| Guide docs | Not supported | Auto-discovers `doc/` & `docs/` markdown files (configurable via `--guide-dirs`) |
+| Guide docs | Not supported | Auto-discovers `doc/` & `docs/` files |
 | Workspace mode | Not supported | `--workspace-docs` for mono-repos |
 | Sidebar | HTML nav | Auto-generated TypeScript sidebar data |
-| Customization | Templates | Full VitePress ecosystem (Vue components, plugins) |
+| Customization | Templates | VitePress ecosystem (Vue, plugins) |
 
 The fork adds a `--format vitepress` option while keeping full backward compatibility with the original `dart doc` HTML output.
 
@@ -184,18 +184,19 @@ A markdown-it plugin + Vue component that turns ` ```dartpad ` code fences into 
 
 #### API Breadcrumbs
 
-A Vue component (`<ApiBreadcrumb />`) auto-injected into API pages that renders `package > category > class` navigation from the route path and frontmatter.
+A Vue component (`<ApiBreadcrumb />`) auto-injected into API pages.
+Renders `package > category` navigation from the route path and frontmatter.
 
 ### Why this matters
 
-Standard dartdoc generates a closed HTML output. dartdoc-vitepress generates **open markdown + TypeScript data** that you can extend:
+Standard dartdoc generates closed HTML output.
+dartdoc-vitepress generates **open markdown + TypeScript data**
+that you can extend:
 
-| What you can add | How |
-|---|---|
-| Custom markdown-it plugins | `md.use(yourPlugin)` in `config.ts` |
-| Vue components in markdown | Register in `theme/index.ts`, use in `.md` files |
-| Theme customization | `custom.css` or full theme override |
-| Build-time data transforms | Import generated `api-sidebar.ts` or scan `api/` directory |
+- **Custom plugins** — `md.use(yourPlugin)` in `config.ts`
+- **Vue components** — register in `theme/index.ts`, use in `.md`
+- **Theme customization** — `custom.css` or full theme override
+- **Data transforms** — import `api-sidebar.ts` or scan `api/`
 
 ## Upstream
 
