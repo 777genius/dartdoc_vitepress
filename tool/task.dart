@@ -881,7 +881,7 @@ Future<void> validateDartdocDocs() async {
       '<title>dartdoc_vitepress - Dart API docs</title>');
   var objectText = RegExp('<li>Object</li>', multiLine: true);
   _expectFileContains(
-    path.join(_dartdocDocsPath, 'dartdoc_vitepress', 'PubPackageMeta-class.html'),
+    path.join(_dartdocDocsPath, 'dartdoc', 'PubPackageMeta-class.html'),
     objectText,
   );
 }
