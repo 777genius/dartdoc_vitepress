@@ -10,11 +10,11 @@ library;
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/nullability_suffix.dart';
 import 'package:analyzer/dart/element/type.dart';
-import 'package:dartdoc/src/model/comment_referable.dart';
-import 'package:dartdoc/src/model/model.dart';
-import 'package:dartdoc/src/render/element_type_renderer.dart';
-import 'package:dartdoc/src/runtime_stats.dart';
-import 'package:dartdoc/src/type_utils.dart';
+import 'package:dartdoc_vitepress/src/model/comment_referable.dart';
+import 'package:dartdoc_vitepress/src/model/model.dart';
+import 'package:dartdoc_vitepress/src/render/element_type_renderer.dart';
+import 'package:dartdoc_vitepress/src/runtime_stats.dart';
+import 'package:dartdoc_vitepress/src/type_utils.dart';
 import 'package:meta/meta.dart';
 
 /// Base class representing a type in Dartdoc.  It wraps a [DartType], and

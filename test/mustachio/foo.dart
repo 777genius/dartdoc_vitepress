@@ -8,7 +8,7 @@
 @Renderer.forTest(#renderBaz, Context<Baz>(), 'baz')
 library;
 
-import 'package:dartdoc/src/mustachio/annotations.dart';
+import 'package:dartdoc_vitepress/src/mustachio/annotations.dart';
 
 class FooBase<T extends Object> {
   T? baz;

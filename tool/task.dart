@@ -9,7 +9,7 @@ import 'package:analyzer/file_system/physical_file_system.dart';
 import 'package:args/args.dart';
 import 'package:collection/collection.dart';
 import 'package:crypto/crypto.dart' as crypto;
-import 'package:dartdoc/src/package_meta.dart';
+import 'package:dartdoc_vitepress/src/package_meta.dart';
 import 'package:path/path.dart' as path;
 import 'package:sass/sass.dart' as sass;
 import 'package:yaml/yaml.dart' as yaml;
@@ -367,7 +367,7 @@ Future<Iterable<Map<String, Object?>>> _docFlutter({
   // when using -spath.  Why?
   await flutterRepo.launcher.runStreamed(
     flutterRepo.flutterCmd,
-    ['pub', 'global', 'activate', '-spath', '.', '-x', 'dartdoc'],
+    ['pub', 'global', 'activate', '-spath', '.', '-x', 'dartdoc_vitepress'],
     workingDirectory: cwd,
   );
   await flutterRepo.launcher.runStreamed(

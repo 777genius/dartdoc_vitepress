@@ -3,8 +3,8 @@
 // BSD-style license that can be found in the LICENSE file.
 
 import 'package:analyzer/dart/element/element.dart';
-import 'package:dartdoc/src/comment_references/parser.dart';
-import 'package:dartdoc/src/model/model.dart';
+import 'package:dartdoc_vitepress/src/comment_references/parser.dart';
+import 'package:dartdoc_vitepress/src/model/model.dart';
 
 class Operator extends Method {
   Operator(super.element, super.library, super.packageGraph);

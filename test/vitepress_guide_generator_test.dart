@@ -3,7 +3,7 @@
 // BSD-style license that can be found in the LICENSE file.
 
 import 'package:analyzer/file_system/file_system.dart';
-import 'package:dartdoc/src/generator/vitepress_guide_generator.dart';
+import 'package:dartdoc_vitepress/src/generator/vitepress_guide_generator.dart';
 import 'package:test/test.dart';
 
 void main() {

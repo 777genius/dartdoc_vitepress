@@ -41,15 +41,15 @@
 @Renderer(#renderTypedef, Context<TypedefTemplateData>(), 'typedef')
 library;
 
-import 'package:dartdoc/src/element_type.dart';
-import 'package:dartdoc/src/generator/template_data.dart';
-import 'package:dartdoc/src/generator/templates.aot_renderers_for_html.dart'
+import 'package:dartdoc_vitepress/src/element_type.dart';
+import 'package:dartdoc_vitepress/src/generator/template_data.dart';
+import 'package:dartdoc_vitepress/src/generator/templates.aot_renderers_for_html.dart'
     as aot_renderers_for_html;
-import 'package:dartdoc/src/model/annotation.dart';
-import 'package:dartdoc/src/model/model.dart';
-import 'package:dartdoc/src/model/tag.dart';
-import 'package:dartdoc/src/mustachio/annotations.dart';
-import 'package:dartdoc/src/mustachio/renderer_base.dart';
+import 'package:dartdoc_vitepress/src/model/annotation.dart';
+import 'package:dartdoc_vitepress/src/model/model.dart';
+import 'package:dartdoc_vitepress/src/model/tag.dart';
+import 'package:dartdoc_vitepress/src/mustachio/annotations.dart';
+import 'package:dartdoc_vitepress/src/mustachio/renderer_base.dart';
 
 /// The set of types which are visible to the Mustachio renderers.
 ///

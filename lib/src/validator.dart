@@ -7,12 +7,12 @@ import 'dart:convert';
 
 import 'package:analyzer/file_system/file_system.dart';
 import 'package:collection/collection.dart';
-import 'package:dartdoc/src/dartdoc_options.dart';
-import 'package:dartdoc/src/logging.dart';
-import 'package:dartdoc/src/model/model_element.dart';
-import 'package:dartdoc/src/model/package_graph.dart';
-import 'package:dartdoc/src/runtime_stats.dart';
-import 'package:dartdoc/src/warnings.dart';
+import 'package:dartdoc_vitepress/src/dartdoc_options.dart';
+import 'package:dartdoc_vitepress/src/logging.dart';
+import 'package:dartdoc_vitepress/src/model/model_element.dart';
+import 'package:dartdoc_vitepress/src/model/package_graph.dart';
+import 'package:dartdoc_vitepress/src/runtime_stats.dart';
+import 'package:dartdoc_vitepress/src/warnings.dart';
 import 'package:html/parser.dart' show parse;
 import 'package:path/path.dart' as path;
 

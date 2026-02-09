@@ -2,15 +2,15 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-/// @docImport 'package:dartdoc/src/tool_configuration.dart';
+/// @docImport 'package:dartdoc_vitepress/src/tool_configuration.dart';
 library;
 
 import 'dart:async';
 
 import 'package:analyzer/file_system/file_system.dart';
-import 'package:dartdoc/src/dartdoc_options.dart';
-import 'package:dartdoc/src/io_utils.dart';
-import 'package:dartdoc/src/tool_runner.dart';
+import 'package:dartdoc_vitepress/src/dartdoc_options.dart';
+import 'package:dartdoc_vitepress/src/io_utils.dart';
+import 'package:dartdoc_vitepress/src/tool_runner.dart';
 import 'package:path/path.dart' as p show extension;
 
 /// Defines the attributes of a tool in the options file, corresponding to

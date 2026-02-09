@@ -6,11 +6,11 @@ import 'dart:convert';
 
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
-import 'package:dartdoc/src/element_type.dart';
-import 'package:dartdoc/src/model/attribute.dart';
-import 'package:dartdoc/src/model/getter_setter_combo.dart';
-import 'package:dartdoc/src/model/library.dart';
-import 'package:dartdoc/src/model/package_graph.dart';
+import 'package:dartdoc_vitepress/src/element_type.dart';
+import 'package:dartdoc_vitepress/src/model/attribute.dart';
+import 'package:dartdoc_vitepress/src/model/getter_setter_combo.dart';
+import 'package:dartdoc_vitepress/src/model/library.dart';
+import 'package:dartdoc_vitepress/src/model/package_graph.dart';
 
 /// Represents a Dart annotation, attached to an element in the source code with
 /// `@`.

@@ -3,7 +3,7 @@
 // BSD-style license that can be found in the LICENSE file.
 
 import 'package:analyzer/source/line_info.dart';
-import 'package:dartdoc/src/model/model.dart';
+import 'package:dartdoc_vitepress/src/model/model.dart';
 
 mixin SourceCode implements Documentable {
   ModelNode? get modelNode;

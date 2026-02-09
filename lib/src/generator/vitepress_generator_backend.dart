@@ -3,21 +3,21 @@
 // BSD-style license that can be found in the LICENSE file.
 
 import 'package:analyzer/file_system/file_system.dart';
-import 'package:dartdoc/src/generator/generator.dart';
-import 'package:dartdoc/src/generator/generator_backend.dart';
-import 'package:dartdoc/src/generator/template_data.dart';
-import 'package:dartdoc/src/generator/templates.dart';
-import 'package:dartdoc/src/generator/vitepress_doc_processor.dart';
-import 'package:dartdoc/src/generator/vitepress_guide_generator.dart';
-import 'package:dartdoc/src/generator/vitepress_init.dart';
-import 'package:dartdoc/src/generator/vitepress_paths.dart'
+import 'package:dartdoc_vitepress/src/generator/generator.dart';
+import 'package:dartdoc_vitepress/src/generator/generator_backend.dart';
+import 'package:dartdoc_vitepress/src/generator/template_data.dart';
+import 'package:dartdoc_vitepress/src/generator/templates.dart';
+import 'package:dartdoc_vitepress/src/generator/vitepress_doc_processor.dart';
+import 'package:dartdoc_vitepress/src/generator/vitepress_guide_generator.dart';
+import 'package:dartdoc_vitepress/src/generator/vitepress_init.dart';
+import 'package:dartdoc_vitepress/src/generator/vitepress_paths.dart'
     show VitePressPathResolver;
-import 'package:dartdoc/src/generator/vitepress_renderer.dart' as renderer;
-import 'package:dartdoc/src/generator/vitepress_sidebar_generator.dart'
+import 'package:dartdoc_vitepress/src/generator/vitepress_renderer.dart' as renderer;
+import 'package:dartdoc_vitepress/src/generator/vitepress_sidebar_generator.dart'
     show VitePressSidebarGenerator;
-import 'package:dartdoc/src/logging.dart';
-import 'package:dartdoc/src/model/model.dart';
-import 'package:dartdoc/src/runtime_stats.dart';
+import 'package:dartdoc_vitepress/src/logging.dart';
+import 'package:dartdoc_vitepress/src/model/model.dart';
+import 'package:dartdoc_vitepress/src/runtime_stats.dart';
 import 'package:path/path.dart' as p;
 
 /// Generator backend that produces VitePress-compatible markdown documentation.

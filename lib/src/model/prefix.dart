@@ -4,9 +4,9 @@
 
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/scope.dart';
-import 'package:dartdoc/src/model/comment_referable.dart';
-import 'package:dartdoc/src/model/kind.dart';
-import 'package:dartdoc/src/model/model.dart';
+import 'package:dartdoc_vitepress/src/model/comment_referable.dart';
+import 'package:dartdoc_vitepress/src/model/kind.dart';
+import 'package:dartdoc_vitepress/src/model/model.dart';
 
 /// Represents a [PrefixElement] for dartdoc.
 ///

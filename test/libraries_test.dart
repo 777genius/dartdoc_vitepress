@@ -4,7 +4,7 @@
 
 import 'package:analyzer/file_system/memory_file_system.dart';
 import 'package:analyzer_testing/utilities/extensions/resource_provider.dart';
-import 'package:dartdoc/src/model/model.dart';
+import 'package:dartdoc_vitepress/src/model/model.dart';
 import 'package:test/test.dart';
 import 'package:test_reflective_loader/test_reflective_loader.dart';
 

@@ -5,11 +5,11 @@
 import 'dart:convert';
 
 import 'package:collection/collection.dart';
-import 'package:dartdoc/src/model/documentable.dart';
-import 'package:dartdoc/src/model/inheritable.dart';
-import 'package:dartdoc/src/model/library.dart';
-import 'package:dartdoc/src/model/model_element.dart';
-import 'package:dartdoc/src/model/nameable.dart';
+import 'package:dartdoc_vitepress/src/model/documentable.dart';
+import 'package:dartdoc_vitepress/src/model/inheritable.dart';
+import 'package:dartdoc_vitepress/src/model/library.dart';
+import 'package:dartdoc_vitepress/src/model/model_element.dart';
+import 'package:dartdoc_vitepress/src/model/nameable.dart';
 
 String generateCategoryJson(
     List<ModelElement> categorizedElements, bool pretty) {

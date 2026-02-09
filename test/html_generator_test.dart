@@ -5,16 +5,16 @@
 import 'package:analyzer/file_system/file_system.dart';
 import 'package:analyzer/file_system/memory_file_system.dart';
 import 'package:analyzer_testing/utilities/extensions/resource_provider.dart';
-import 'package:dartdoc/src/dartdoc.dart' show DartdocFileWriter;
-import 'package:dartdoc/src/dartdoc_options.dart';
-import 'package:dartdoc/src/generator/generator.dart';
-import 'package:dartdoc/src/generator/generator_backend.dart';
-import 'package:dartdoc/src/generator/html_generator_backend.dart';
-import 'package:dartdoc/src/generator/html_resources.g.dart';
-import 'package:dartdoc/src/generator/templates.dart';
-import 'package:dartdoc/src/model/library.dart';
-import 'package:dartdoc/src/package_meta.dart';
-import 'package:dartdoc/src/warnings.dart';
+import 'package:dartdoc_vitepress/src/dartdoc.dart' show DartdocFileWriter;
+import 'package:dartdoc_vitepress/src/dartdoc_options.dart';
+import 'package:dartdoc_vitepress/src/generator/generator.dart';
+import 'package:dartdoc_vitepress/src/generator/generator_backend.dart';
+import 'package:dartdoc_vitepress/src/generator/html_generator_backend.dart';
+import 'package:dartdoc_vitepress/src/generator/html_resources.g.dart';
+import 'package:dartdoc_vitepress/src/generator/templates.dart';
+import 'package:dartdoc_vitepress/src/model/library.dart';
+import 'package:dartdoc_vitepress/src/package_meta.dart';
+import 'package:dartdoc_vitepress/src/warnings.dart';
 import 'package:path/path.dart' as path;
 import 'package:test/test.dart';
 

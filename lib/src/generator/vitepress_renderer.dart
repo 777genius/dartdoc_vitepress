@@ -10,13 +10,13 @@
 /// [VitePressDocProcessor] for documentation processing.
 library;
 
-import 'package:dartdoc/src/comment_references/parser.dart' show operatorNames;
-import 'package:dartdoc/src/element_type.dart';
-import 'package:dartdoc/src/generator/vitepress_doc_processor.dart';
-import 'package:dartdoc/src/generator/vitepress_paths.dart';
-import 'package:dartdoc/src/model/attribute.dart' show Attribute;
-import 'package:dartdoc/src/model/container_modifiers.dart';
-import 'package:dartdoc/src/model/model.dart';
+import 'package:dartdoc_vitepress/src/comment_references/parser.dart' show operatorNames;
+import 'package:dartdoc_vitepress/src/element_type.dart';
+import 'package:dartdoc_vitepress/src/generator/vitepress_doc_processor.dart';
+import 'package:dartdoc_vitepress/src/generator/vitepress_paths.dart';
+import 'package:dartdoc_vitepress/src/model/attribute.dart' show Attribute;
+import 'package:dartdoc_vitepress/src/model/container_modifiers.dart';
+import 'package:dartdoc_vitepress/src/model/model.dart';
 import 'package:meta/meta.dart';
 
 // ---------------------------------------------------------------------------

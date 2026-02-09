@@ -5,11 +5,11 @@
 /// A documentation generator for Dart.
 library;
 
-export 'package:dartdoc/src/dartdoc.dart';
-export 'package:dartdoc/src/dartdoc_options.dart';
-export 'package:dartdoc/src/generator/generator.dart';
-export 'package:dartdoc/src/model/kind.dart';
-export 'package:dartdoc/src/model/package_builder.dart';
-export 'package:dartdoc/src/model/package_graph.dart';
-export 'package:dartdoc/src/package_config_provider.dart';
-export 'package:dartdoc/src/package_meta.dart';
+export 'package:dartdoc_vitepress/src/dartdoc.dart';
+export 'package:dartdoc_vitepress/src/dartdoc_options.dart';
+export 'package:dartdoc_vitepress/src/generator/generator.dart';
+export 'package:dartdoc_vitepress/src/model/kind.dart';
+export 'package:dartdoc_vitepress/src/model/package_builder.dart';
+export 'package:dartdoc_vitepress/src/model/package_graph.dart';
+export 'package:dartdoc_vitepress/src/package_config_provider.dart';
+export 'package:dartdoc_vitepress/src/package_meta.dart';

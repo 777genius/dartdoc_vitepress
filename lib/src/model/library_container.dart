@@ -3,8 +3,8 @@
 // BSD-style license that can be found in the LICENSE file.
 
 import 'package:collection/collection.dart';
-import 'package:dartdoc/src/model/model.dart';
-import 'package:dartdoc/src/model_utils.dart' as model_utils;
+import 'package:dartdoc_vitepress/src/model/model.dart';
+import 'package:dartdoc_vitepress/src/model_utils.dart' as model_utils;
 import 'package:meta/meta.dart';
 
 /// A set of libraries, initialized after construction by accessing [libraries].

@@ -10,7 +10,7 @@ import 'package:analyzer/file_system/physical_file_system.dart';
 
 // ignore: implementation_imports
 import 'package:analyzer/src/generated/sdk.dart' show DartSdk;
-import 'package:dartdoc/src/failure.dart';
+import 'package:dartdoc_vitepress/src/failure.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as path;
 import 'package:yaml/yaml.dart';

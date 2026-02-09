@@ -3,15 +3,15 @@
 // BSD-style license that can be found in the LICENSE file.
 
 import 'package:analyzer/file_system/file_system.dart';
-import 'package:dartdoc/src/dartdoc_options.dart';
-import 'package:dartdoc/src/generator/generator.dart';
-import 'package:dartdoc/src/generator/generator_utils.dart' as generator_util;
-import 'package:dartdoc/src/generator/template_data.dart';
-import 'package:dartdoc/src/generator/templates.dart';
-import 'package:dartdoc/src/model/model.dart';
-import 'package:dartdoc/src/runtime_stats.dart';
-import 'package:dartdoc/src/version.dart';
-import 'package:dartdoc/src/warnings.dart';
+import 'package:dartdoc_vitepress/src/dartdoc_options.dart';
+import 'package:dartdoc_vitepress/src/generator/generator.dart';
+import 'package:dartdoc_vitepress/src/generator/generator_utils.dart' as generator_util;
+import 'package:dartdoc_vitepress/src/generator/template_data.dart';
+import 'package:dartdoc_vitepress/src/generator/templates.dart';
+import 'package:dartdoc_vitepress/src/model/model.dart';
+import 'package:dartdoc_vitepress/src/runtime_stats.dart';
+import 'package:dartdoc_vitepress/src/version.dart';
+import 'package:dartdoc_vitepress/src/warnings.dart';
 import 'package:path/path.dart' as p show Context;
 
 /// Configuration options for Dartdoc's default backend.

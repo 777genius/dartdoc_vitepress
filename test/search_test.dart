@@ -2,8 +2,8 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-import 'package:dartdoc/src/model/kind.dart';
-import 'package:dartdoc/src/search.dart';
+import 'package:dartdoc_vitepress/src/model/kind.dart';
+import 'package:dartdoc_vitepress/src/search.dart';
 import 'package:test/test.dart';
 import 'package:test_reflective_loader/test_reflective_loader.dart';
 

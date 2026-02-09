@@ -2,13 +2,13 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-import 'package:dartdoc/src/generator/generator.dart';
-import 'package:dartdoc/src/generator/generator_backend.dart';
-import 'package:dartdoc/src/generator/html_resources.g.dart' as resources;
-import 'package:dartdoc/src/generator/resource_loader.dart';
-import 'package:dartdoc/src/generator/template_data.dart';
-import 'package:dartdoc/src/model/model.dart';
-import 'package:dartdoc/src/runtime_stats.dart';
+import 'package:dartdoc_vitepress/src/generator/generator.dart';
+import 'package:dartdoc_vitepress/src/generator/generator_backend.dart';
+import 'package:dartdoc_vitepress/src/generator/html_resources.g.dart' as resources;
+import 'package:dartdoc_vitepress/src/generator/resource_loader.dart';
+import 'package:dartdoc_vitepress/src/generator/template_data.dart';
+import 'package:dartdoc_vitepress/src/model/model.dart';
+import 'package:dartdoc_vitepress/src/runtime_stats.dart';
 
 /// Generator backend for HTML output.
 class HtmlGeneratorBackend extends GeneratorBackend {
@@ -117,5 +117,5 @@ class HtmlGeneratorBackend extends GeneratorBackend {
   String _pathJoin(String a, String b) =>
       resourceProvider.pathContext.join(a, b);
 
-  static const _dartdocResourcePrefix = 'package:dartdoc/resources';
+  static const _dartdocResourcePrefix = 'package:dartdoc_vitepress/resources';
 }

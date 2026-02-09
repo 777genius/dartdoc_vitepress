@@ -4,7 +4,7 @@
 
 import 'package:analyzer/dart/element/type.dart';
 import 'package:collection/collection.dart';
-import 'package:dartdoc/src/element_type.dart';
+import 'package:dartdoc_vitepress/src/element_type.dart';
 
 /// Render HTML suitable for a single, wrapped line.
 class RecordTypeFieldListHtmlRenderer extends _RecordTypeFieldListRenderer {

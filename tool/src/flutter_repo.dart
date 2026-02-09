@@ -5,7 +5,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:dartdoc/src/io_utils.dart';
+import 'package:dartdoc_vitepress/src/io_utils.dart';
 import 'package:path/path.dart' as path;
 
 import 'io_utils.dart' as io_utils;

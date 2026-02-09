@@ -5,10 +5,10 @@
 import 'dart:io' show Platform;
 
 import 'package:analyzer/file_system/file_system.dart';
-import 'package:dartdoc/src/dartdoc_options.dart';
-import 'package:dartdoc/src/io_utils.dart';
-import 'package:dartdoc/src/tool_definition.dart';
-import 'package:dartdoc/src/tool_runner.dart';
+import 'package:dartdoc_vitepress/src/dartdoc_options.dart';
+import 'package:dartdoc_vitepress/src/io_utils.dart';
+import 'package:dartdoc_vitepress/src/tool_definition.dart';
+import 'package:dartdoc_vitepress/src/tool_runner.dart';
 import 'package:yaml/yaml.dart';
 
 /// A configuration class that can interpret [ToolDefinition]s from a YAML map.

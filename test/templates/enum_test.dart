@@ -3,8 +3,8 @@
 // BSD-style license that can be found in the LICENSE file.
 
 import 'package:analyzer/file_system/memory_file_system.dart';
-import 'package:dartdoc/src/dartdoc.dart';
-import 'package:dartdoc/src/model/model.dart';
+import 'package:dartdoc_vitepress/src/dartdoc.dart';
+import 'package:dartdoc_vitepress/src/model/model.dart';
 import 'package:path/path.dart' as path;
 import 'package:test/test.dart';
 

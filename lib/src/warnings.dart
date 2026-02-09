@@ -8,12 +8,12 @@ import 'dart:math' as math;
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/file_system/file_system.dart';
 import 'package:collection/collection.dart';
-import 'package:dartdoc/src/dartdoc_options.dart';
-import 'package:dartdoc/src/logging.dart';
-import 'package:dartdoc/src/model/comment_referable.dart';
-import 'package:dartdoc/src/model/model.dart';
-import 'package:dartdoc/src/package_meta.dart';
-import 'package:dartdoc/src/utils.dart';
+import 'package:dartdoc_vitepress/src/dartdoc_options.dart';
+import 'package:dartdoc_vitepress/src/logging.dart';
+import 'package:dartdoc_vitepress/src/model/comment_referable.dart';
+import 'package:dartdoc_vitepress/src/model/model.dart';
+import 'package:dartdoc_vitepress/src/package_meta.dart';
+import 'package:dartdoc_vitepress/src/utils.dart';
 import 'package:meta/meta.dart';
 
 const _namePlaceholder = '@@name@@';

@@ -2,8 +2,8 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-import 'package:dartdoc/src/io_utils.dart';
-import 'package:dartdoc/src/package_meta.dart';
+import 'package:dartdoc_vitepress/src/io_utils.dart';
+import 'package:dartdoc_vitepress/src/package_meta.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -39,7 +39,7 @@ void main() {
         resourceProvider.getFolder(resourceProvider.pathContext.current))!;
 
     test('has a name', () {
-      expect(p.name, 'dartdoc');
+      expect(p.name, 'dartdoc_vitepress');
     });
 
     test('has a version', () {

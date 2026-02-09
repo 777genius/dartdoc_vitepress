@@ -4,10 +4,10 @@
 
 import 'dart:convert';
 
-import 'package:dartdoc/src/generator/generator_utils.dart';
-import 'package:dartdoc/src/model/kind.dart';
-import 'package:dartdoc/src/model/model.dart';
-import 'package:dartdoc/src/model_utils.dart';
+import 'package:dartdoc_vitepress/src/generator/generator_utils.dart';
+import 'package:dartdoc_vitepress/src/model/kind.dart';
+import 'package:dartdoc_vitepress/src/model/model.dart';
+import 'package:dartdoc_vitepress/src/model_utils.dart';
 import 'package:test/test.dart';
 import 'package:test_reflective_loader/test_reflective_loader.dart';
 

@@ -11,10 +11,10 @@ import 'package:analyzer/dart/analysis/features.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/scope.dart';
 import 'package:collection/collection.dart';
-import 'package:dartdoc/src/model/library.dart';
-import 'package:dartdoc/src/model/model_element.dart';
-import 'package:dartdoc/src/model/nameable.dart';
-import 'package:dartdoc/src/model/prefix.dart';
+import 'package:dartdoc_vitepress/src/model/library.dart';
+import 'package:dartdoc_vitepress/src/model/model_element.dart';
+import 'package:dartdoc_vitepress/src/model/nameable.dart';
+import 'package:dartdoc_vitepress/src/model/prefix.dart';
 import 'package:meta/meta.dart';
 
 class _ReferenceChildrenLookup {

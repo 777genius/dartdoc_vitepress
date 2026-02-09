@@ -5,13 +5,13 @@
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart' show DartType;
 import 'package:collection/collection.dart';
-import 'package:dartdoc/src/element_type.dart';
-import 'package:dartdoc/src/model/accessor.dart';
-import 'package:dartdoc/src/model/constructor.dart';
-import 'package:dartdoc/src/model/container.dart';
-import 'package:dartdoc/src/model/library.dart';
-import 'package:dartdoc/src/model/model_element.dart';
-import 'package:dartdoc/src/model/package_graph.dart';
+import 'package:dartdoc_vitepress/src/element_type.dart';
+import 'package:dartdoc_vitepress/src/model/accessor.dart';
+import 'package:dartdoc_vitepress/src/model/constructor.dart';
+import 'package:dartdoc_vitepress/src/model/container.dart';
+import 'package:dartdoc_vitepress/src/model/library.dart';
+import 'package:dartdoc_vitepress/src/model/model_element.dart';
+import 'package:dartdoc_vitepress/src/model/package_graph.dart';
 
 /// Something that has a name.
 mixin Nameable {

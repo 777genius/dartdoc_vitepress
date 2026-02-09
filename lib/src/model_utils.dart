@@ -5,9 +5,9 @@
 import 'dart:io' show Platform;
 
 import 'package:analyzer/dart/element/element.dart';
-import 'package:dartdoc/src/charcode.dart' show $a, $z;
-import 'package:dartdoc/src/failure.dart';
-import 'package:dartdoc/src/model/model.dart';
+import 'package:dartdoc_vitepress/src/charcode.dart' show $a, $z;
+import 'package:dartdoc_vitepress/src/failure.dart';
+import 'package:dartdoc_vitepress/src/model/model.dart';
 import 'package:glob/glob.dart';
 import 'package:path/path.dart' as path;
 

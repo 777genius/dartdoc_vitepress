@@ -9,15 +9,15 @@ import 'package:analyzer/dart/element/type.dart';
 import 'package:analyzer/source/line_info.dart';
 import 'package:async/async.dart';
 import 'package:collection/src/iterable_extensions.dart';
-import 'package:dartdoc/src/element_type.dart';
-import 'package:dartdoc/src/matching_link_result.dart';
-import 'package:dartdoc/src/model/attribute.dart';
-import 'package:dartdoc/src/model/kind.dart';
-import 'package:dartdoc/src/model/model.dart';
-import 'package:dartdoc/src/model_utils.dart';
-import 'package:dartdoc/src/package_meta.dart';
-import 'package:dartdoc/src/render/parameter_renderer.dart';
-import 'package:dartdoc/src/warnings.dart';
+import 'package:dartdoc_vitepress/src/element_type.dart';
+import 'package:dartdoc_vitepress/src/matching_link_result.dart';
+import 'package:dartdoc_vitepress/src/model/attribute.dart';
+import 'package:dartdoc_vitepress/src/model/kind.dart';
+import 'package:dartdoc_vitepress/src/model/model.dart';
+import 'package:dartdoc_vitepress/src/model_utils.dart';
+import 'package:dartdoc_vitepress/src/package_meta.dart';
+import 'package:dartdoc_vitepress/src/render/parameter_renderer.dart';
+import 'package:dartdoc_vitepress/src/warnings.dart';
 import 'package:test/test.dart';
 
 import '../src/utils.dart'

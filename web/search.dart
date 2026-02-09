@@ -5,7 +5,7 @@
 import 'dart:convert';
 import 'dart:js_interop';
 
-import 'package:dartdoc/src/search.dart';
+import 'package:dartdoc_vitepress/src/search.dart';
 import 'package:web/web.dart';
 
 final String _htmlBase = () {

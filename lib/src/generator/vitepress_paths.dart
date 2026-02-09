@@ -2,8 +2,8 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-import 'package:dartdoc/src/comment_references/parser.dart' show operatorNames;
-import 'package:dartdoc/src/model/model.dart';
+import 'package:dartdoc_vitepress/src/comment_references/parser.dart' show operatorNames;
+import 'package:dartdoc_vitepress/src/model/model.dart';
 import 'package:meta/meta.dart';
 
 // ---------------------------------------------------------------------------

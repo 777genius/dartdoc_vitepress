@@ -5,9 +5,9 @@
 import 'dart:convert';
 
 import 'package:analyzer/dart/element/element.dart';
-import 'package:dartdoc/src/model/attribute.dart';
-import 'package:dartdoc/src/model/kind.dart';
-import 'package:dartdoc/src/model/model.dart';
+import 'package:dartdoc_vitepress/src/model/attribute.dart';
+import 'package:dartdoc_vitepress/src/model/kind.dart';
+import 'package:dartdoc_vitepress/src/model/model.dart';
 
 class Field extends ModelElement
     with GetterSetterCombo, ContainerMember, Inheritable, HasLibrary {

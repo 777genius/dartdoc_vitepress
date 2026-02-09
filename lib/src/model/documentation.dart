@@ -2,9 +2,9 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-import 'package:dartdoc/src/markdown_processor.dart';
-import 'package:dartdoc/src/render/documentation_renderer.dart';
-import 'package:dartdoc/src/warnings.dart';
+import 'package:dartdoc_vitepress/src/markdown_processor.dart';
+import 'package:dartdoc_vitepress/src/render/documentation_renderer.dart';
+import 'package:dartdoc_vitepress/src/warnings.dart';
 import 'package:markdown/markdown.dart' as md;
 
 class Documentation {

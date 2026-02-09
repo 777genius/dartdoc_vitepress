@@ -3,8 +3,8 @@
 // BSD-style license that can be found in the LICENSE file.
 
 import 'package:analyzer/file_system/file_system.dart';
-import 'package:dartdoc/src/generator/generator.dart';
-import 'package:dartdoc/src/generator/resource_loader.dart';
+import 'package:dartdoc_vitepress/src/generator/generator.dart';
+import 'package:dartdoc_vitepress/src/generator/resource_loader.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 
@@ -30,7 +30,7 @@ class VitePressInitGenerator {
   final String outputPath;
 
   /// Package URI prefix for VitePress template files.
-  static const _templatePrefix = 'package:dartdoc/resources/vitepress';
+  static const _templatePrefix = 'package:dartdoc_vitepress/resources/vitepress';
 
   VitePressInitGenerator({
     required this.writer,

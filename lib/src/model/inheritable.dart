@@ -4,8 +4,8 @@
 
 import 'package:analyzer/dart/element/element.dart';
 import 'package:collection/collection.dart' show IterableExtension;
-import 'package:dartdoc/src/model/attribute.dart';
-import 'package:dartdoc/src/model/model.dart';
+import 'package:dartdoc_vitepress/src/model/attribute.dart';
+import 'package:dartdoc_vitepress/src/model/model.dart';
 
 /// Mixin for subclasses of [ModelElement] representing elements that can be
 /// inherited from one class to another.

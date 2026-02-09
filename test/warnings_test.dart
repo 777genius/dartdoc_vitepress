@@ -6,9 +6,9 @@
 library;
 
 import 'package:analyzer/file_system/physical_file_system.dart';
-import 'package:dartdoc/src/dartdoc_options.dart';
-import 'package:dartdoc/src/package_meta.dart';
-import 'package:dartdoc/src/warnings.dart';
+import 'package:dartdoc_vitepress/src/dartdoc_options.dart';
+import 'package:dartdoc_vitepress/src/package_meta.dart';
+import 'package:dartdoc_vitepress/src/warnings.dart';
 import 'package:test/test.dart';
 
 import 'src/test_descriptor_utils.dart' as d;

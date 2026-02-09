@@ -5,17 +5,17 @@
 /// A library containing an abstract documentation generator.
 library;
 
-import 'package:dartdoc/src/dartdoc_options.dart';
-import 'package:dartdoc/src/generator/generator_backend.dart';
-import 'package:dartdoc/src/generator/html_generator_backend.dart';
-import 'package:dartdoc/src/generator/templates.dart';
-import 'package:dartdoc/src/generator/vitepress_generator_backend.dart';
-import 'package:dartdoc/src/logging.dart';
-import 'package:dartdoc/src/model/model.dart';
-import 'package:dartdoc/src/model_utils.dart';
-import 'package:dartdoc/src/package_meta.dart';
-import 'package:dartdoc/src/runtime_stats.dart';
-import 'package:dartdoc/src/warnings.dart';
+import 'package:dartdoc_vitepress/src/dartdoc_options.dart';
+import 'package:dartdoc_vitepress/src/generator/generator_backend.dart';
+import 'package:dartdoc_vitepress/src/generator/html_generator_backend.dart';
+import 'package:dartdoc_vitepress/src/generator/templates.dart';
+import 'package:dartdoc_vitepress/src/generator/vitepress_generator_backend.dart';
+import 'package:dartdoc_vitepress/src/logging.dart';
+import 'package:dartdoc_vitepress/src/model/model.dart';
+import 'package:dartdoc_vitepress/src/model_utils.dart';
+import 'package:dartdoc_vitepress/src/package_meta.dart';
+import 'package:dartdoc_vitepress/src/runtime_stats.dart';
+import 'package:dartdoc_vitepress/src/warnings.dart';
 
 abstract class FileWriter {
   /// All filenames written by this generator.

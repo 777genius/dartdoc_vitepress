@@ -5,8 +5,8 @@
 /// @docImport 'generator_backend.dart';
 library;
 
-import 'package:dartdoc/src/model/kind.dart';
-import 'package:dartdoc/src/model/model.dart';
+import 'package:dartdoc_vitepress/src/model/kind.dart';
+import 'package:dartdoc_vitepress/src/model/model.dart';
 
 typedef ContainerSidebar = String Function(
     Container, TemplateDataWithContainer);

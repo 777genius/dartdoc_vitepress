@@ -3,12 +3,12 @@
 // BSD-style license that can be found in the LICENSE file.
 
 import 'package:analyzer/file_system/file_system.dart';
-import 'package:dartdoc/src/dartdoc.dart' show Dartdoc;
-import 'package:dartdoc/src/dartdoc_options.dart';
-import 'package:dartdoc/src/io_utils.dart';
-import 'package:dartdoc/src/logging.dart';
-import 'package:dartdoc/src/model/package_builder.dart';
-import 'package:dartdoc/src/package_meta.dart';
+import 'package:dartdoc_vitepress/src/dartdoc.dart' show Dartdoc;
+import 'package:dartdoc_vitepress/src/dartdoc_options.dart';
+import 'package:dartdoc_vitepress/src/io_utils.dart';
+import 'package:dartdoc_vitepress/src/logging.dart';
+import 'package:dartdoc_vitepress/src/model/package_builder.dart';
+import 'package:dartdoc_vitepress/src/package_meta.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 

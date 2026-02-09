@@ -10,7 +10,7 @@ import 'dart:async';
 import 'dart:convert' show json;
 import 'dart:io';
 
-import 'package:dartdoc/src/mustachio/renderer_base.dart';
+import 'package:dartdoc_vitepress/src/mustachio/renderer_base.dart';
 import 'package:package_config/package_config.dart';
 import 'package:path/path.dart' as path;
 import 'package:test/test.dart';

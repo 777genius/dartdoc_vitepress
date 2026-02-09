@@ -10,7 +10,7 @@ import 'package:analyzer/dart/element/type.dart';
 import 'package:analyzer/file_system/physical_file_system.dart';
 import 'package:analyzer/src/dart/analysis/analysis_context_collection.dart'
     show AnalysisContextCollectionImpl;
-import 'package:dartdoc/src/mustachio/annotations.dart';
+import 'package:dartdoc_vitepress/src/mustachio/annotations.dart';
 import 'package:path/path.dart' as path;
 
 import 'codegen_aot_compiler.dart';

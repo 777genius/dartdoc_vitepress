@@ -4,7 +4,7 @@
 //
 
 import 'package:analyzer/dart/ast/ast.dart';
-import 'package:dartdoc/src/comment_references/parser.dart';
+import 'package:dartdoc_vitepress/src/comment_references/parser.dart';
 
 /// A stripped down analyzer AST [CommentReference] containing only that
 /// information needed for Dartdoc.

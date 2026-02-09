@@ -10,11 +10,11 @@ import 'package:analyzer/dart/element/type_provider.dart';
 import 'package:analyzer/dart/element/type_system.dart';
 import 'package:collection/collection.dart';
 import 'package:dart_style/dart_style.dart';
-import 'package:dartdoc/src/logging.dart';
-import 'package:dartdoc/src/mustachio/annotations.dart';
-import 'package:dartdoc/src/mustachio/parser.dart';
-import 'package:dartdoc/src/mustachio/renderer_base.dart';
-import 'package:dartdoc/src/type_utils.dart';
+import 'package:dartdoc_vitepress/src/logging.dart';
+import 'package:dartdoc_vitepress/src/mustachio/annotations.dart';
+import 'package:dartdoc_vitepress/src/mustachio/parser.dart';
+import 'package:dartdoc_vitepress/src/mustachio/renderer_base.dart';
+import 'package:dartdoc_vitepress/src/type_utils.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as path;
 

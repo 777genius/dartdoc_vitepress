@@ -13,17 +13,17 @@ import 'package:analyzer/source/timestamped_data.dart' show TimestampedData;
 // ignore: implementation_imports
 import 'package:analyzer/src/generated/sdk.dart' show DartSdk, SdkLibrary;
 import 'package:collection/collection.dart';
-import 'package:dartdoc/src/dartdoc_options.dart';
-import 'package:dartdoc/src/failure.dart';
-import 'package:dartdoc/src/logging.dart';
-import 'package:dartdoc/src/model/comment_referable.dart';
-import 'package:dartdoc/src/model/model.dart';
-import 'package:dartdoc/src/model_utils.dart' as utils;
-import 'package:dartdoc/src/package_meta.dart'
+import 'package:dartdoc_vitepress/src/dartdoc_options.dart';
+import 'package:dartdoc_vitepress/src/failure.dart';
+import 'package:dartdoc_vitepress/src/logging.dart';
+import 'package:dartdoc_vitepress/src/model/comment_referable.dart';
+import 'package:dartdoc_vitepress/src/model/model.dart';
+import 'package:dartdoc_vitepress/src/model_utils.dart' as utils;
+import 'package:dartdoc_vitepress/src/package_meta.dart'
     show PackageMeta, PackageMetaProvider;
-import 'package:dartdoc/src/tool_definition.dart';
-import 'package:dartdoc/src/tool_runner.dart';
-import 'package:dartdoc/src/warnings.dart';
+import 'package:dartdoc_vitepress/src/tool_definition.dart';
+import 'package:dartdoc_vitepress/src/tool_runner.dart';
+import 'package:dartdoc_vitepress/src/warnings.dart';
 import 'package:meta/meta.dart';
 
 class PackageGraph with CommentReferable, Nameable {

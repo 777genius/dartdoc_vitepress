@@ -2,9 +2,9 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-import 'package:dartdoc/src/element_type.dart';
-import 'package:dartdoc/src/render/parameter_renderer.dart';
-import 'package:dartdoc/src/render/record_type_field_renderer.dart';
+import 'package:dartdoc_vitepress/src/element_type.dart';
+import 'package:dartdoc_vitepress/src/render/parameter_renderer.dart';
+import 'package:dartdoc_vitepress/src/render/record_type_field_renderer.dart';
 
 abstract class ElementTypeRenderer<T extends ElementType> {
   const ElementTypeRenderer();

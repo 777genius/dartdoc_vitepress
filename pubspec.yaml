@@ -1,6 +1,6 @@
-name: dartdoc
+name: dartdoc_vitepress
 version: 1.0.0
-description: A non-interactive HTML documentation generator for Dart source code.
+description: Fork of dartdoc with VitePress backend — generates modern static documentation sites with auto-linking, interactive DartPad embeds, and full Vue.js theming.
 repository: https://github.com/777genius/dartdoc_vitepress
 
 environment:
@@ -36,4 +36,4 @@ dev_dependencies:
   web: ^1.1.0
 
 executables:
-  dartdoc: null
+  dartdoc_vitepress: null
