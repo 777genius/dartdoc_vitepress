@@ -98,10 +98,26 @@ class VitePressInitGenerator {
       outputFile: '.vitepress/theme/components/DartPad.vue',
       placeholders: placeholders,
     );
+
+    // ApiBreadcrumb component for API page navigation
+    _writeTemplateIfAbsent(
+      templateDir: templateDir,
+      templateFile: p.join('theme', 'components', 'ApiBreadcrumb.vue'),
+      outputFile: '.vitepress/theme/components/ApiBreadcrumb.vue',
+      placeholders: placeholders,
+    );
     _writeTemplateIfAbsent(
       templateDir: templateDir,
       templateFile: p.join('theme', 'plugins', 'dartpad.ts'),
       outputFile: '.vitepress/theme/plugins/dartpad.ts',
+      placeholders: placeholders,
+    );
+
+    // API auto-linker: transforms inline code references into clickable links
+    _writeTemplateIfAbsent(
+      templateDir: templateDir,
+      templateFile: p.join('theme', 'plugins', 'api-linker.ts'),
+      outputFile: '.vitepress/theme/plugins/api-linker.ts',
       placeholders: placeholders,
     );
 

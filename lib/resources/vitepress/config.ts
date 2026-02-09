@@ -2,6 +2,7 @@ import { defineConfig } from 'vitepress'
 import { apiSidebar } from './generated/api-sidebar'
 import { guideSidebar } from './generated/guide-sidebar'
 import { dartpadPlugin } from './theme/plugins/dartpad'
+import { apiLinkerPlugin } from './theme/plugins/api-linker'
 
 export default defineConfig({
   title: '{{packageName}} API',
@@ -14,6 +15,7 @@ export default defineConfig({
   markdown: {
     config: (md) => {
       md.use(dartpadPlugin)
+      md.use(apiLinkerPlugin)
     },
   },
   themeConfig: {

@@ -48,16 +48,6 @@ String plainNameWithGenerics(ModelElement element) {
 String escapeGenerics(String text) =>
     text.replaceAll('<', r'\<').replaceAll('>', r'\>');
 
-/// Escapes angle brackets as HTML entities for use inside raw HTML blocks.
-///
-/// Use this instead of [escapeGenerics] when the text is inside HTML elements
-/// (e.g. `<span>`, `<a>` tags in breadcrumbs), where markdown `\<` escaping
-/// does not work and `&lt;`/`&gt;` entities are required.
-String htmlEscapeGenerics(String text) => text
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;');
-
 // ---------------------------------------------------------------------------
 // Testable string helpers.
 // ---------------------------------------------------------------------------
@@ -93,11 +83,15 @@ class _MarkdownPageBuilder {
     required String title,
     required String description,
     required Object outline, // bool or List<int>
+    String? category,
   }) {
     _buffer.writeln('---');
     // Quote the title to handle special characters like `<` and `:`.
     _buffer.writeln('title: "${yamlEscape(title)}"');
     _buffer.writeln('description: "${yamlEscape(description)}"');
+    if (category != null) {
+      _buffer.writeln('category: "${yamlEscape(category)}"');
+    }
     if (outline is bool) {
       _buffer.writeln('outline: $outline');
     } else if (outline is List<int>) {
@@ -110,22 +104,9 @@ class _MarkdownPageBuilder {
     _buffer.writeln();
   }
 
-  /// Writes a breadcrumb navigation line above the page title.
-  ///
-  /// Renders as small muted links: `Library > Kind > Element`.
-  void writeBreadcrumbs(List<(String label, String? link)> crumbs) {
-    if (crumbs.isEmpty) return;
-    final parts = crumbs.map((c) {
-      if (c.$2 != null) {
-        return '<a href="${c.$2}" style="text-decoration:none;color:var(--vp-c-text-2)">${htmlEscapeGenerics(c.$1)}</a>';
-      }
-      return '<span style="color:var(--vp-c-text-3)">${htmlEscapeGenerics(c.$1)}</span>';
-    });
-    _buffer.writeln(
-      '<div style="font-size:0.85em;margin-bottom:0.5em;color:var(--vp-c-text-3)">'
-      '${parts.join(" › ")}'
-      '</div>',
-    );
+  /// Writes a Vue breadcrumb component that reads category from frontmatter.
+  void writeBreadcrumbComponent() {
+    _buffer.writeln('<ApiBreadcrumb />');
     _buffer.writeln();
   }
 
@@ -1136,20 +1117,17 @@ String renderClassPage(
 ) {
   final builder = _MarkdownPageBuilder();
   final nameWithGenerics = plainNameWithGenerics(clazz);
+  final category = clazz.isErrorOrException ? 'Exceptions' : 'Classes';
 
   builder.writeFrontmatter(
     title: nameWithGenerics,
     description:
         'API documentation for $nameWithGenerics class from ${library.name}',
     outline: [2, 3],
+    category: category,
   );
 
-  final libraryUrl = '/api/${paths.dirNameFor(library)}/';
-  builder.writeBreadcrumbs([
-    (library.name, libraryUrl),
-    ('Classes', null),
-    (nameWithGenerics, null),
-  ]);
+  builder.writeBreadcrumbComponent();
 
   builder.writeH1(
     nameWithGenerics,
@@ -1202,14 +1180,10 @@ String renderEnumPage(
     description:
         'API documentation for $nameWithGenerics enum from ${library.name}',
     outline: [2, 3],
+    category: 'Enums',
   );
 
-  final libraryUrl = '/api/${paths.dirNameFor(library)}/';
-  builder.writeBreadcrumbs([
-    (library.name, libraryUrl),
-    ('Enums', null),
-    (nameWithGenerics, null),
-  ]);
+  builder.writeBreadcrumbComponent();
 
   builder.writeH1(
     nameWithGenerics,
@@ -1281,14 +1255,10 @@ String renderMixinPage(
     description:
         'API documentation for $nameWithGenerics mixin from ${library.name}',
     outline: [2, 3],
+    category: 'Mixins',
   );
 
-  final libraryUrl = '/api/${paths.dirNameFor(library)}/';
-  builder.writeBreadcrumbs([
-    (library.name, libraryUrl),
-    ('Mixins', null),
-    (nameWithGenerics, null),
-  ]);
+  builder.writeBreadcrumbComponent();
 
   builder.writeH1(
     nameWithGenerics,
@@ -1351,14 +1321,10 @@ String renderExtensionPage(
     description:
         'API documentation for $nameWithGenerics extension from ${library.name}',
     outline: [2, 3],
+    category: 'Extensions',
   );
 
-  final libraryUrl = '/api/${paths.dirNameFor(library)}/';
-  builder.writeBreadcrumbs([
-    (library.name, libraryUrl),
-    ('Extensions', null),
-    (nameWithGenerics, null),
-  ]);
+  builder.writeBreadcrumbComponent();
 
   builder.writeH1(nameWithGenerics, deprecated: ext.isDeprecated);
 
@@ -1404,14 +1370,10 @@ String renderExtensionTypePage(
     description: 'API documentation for $nameWithGenerics extension type '
         'from ${library.name}',
     outline: [2, 3],
+    category: 'Extension Types',
   );
 
-  final libraryUrl = '/api/${paths.dirNameFor(library)}/';
-  builder.writeBreadcrumbs([
-    (library.name, libraryUrl),
-    ('Extension Types', null),
-    (nameWithGenerics, null),
-  ]);
+  builder.writeBreadcrumbComponent();
 
   builder.writeH1(
     nameWithGenerics,
@@ -1462,14 +1424,10 @@ String renderFunctionPage(
     description: 'API documentation for the $nameWithGenerics function '
         'from ${library.name}',
     outline: false,
+    category: 'Functions',
   );
 
-  final libraryUrl = '/api/${paths.dirNameFor(library)}/';
-  builder.writeBreadcrumbs([
-    (library.name, libraryUrl),
-    ('Functions', null),
-    (nameWithGenerics, null),
-  ]);
+  builder.writeBreadcrumbComponent();
 
   builder.writeH1(nameWithGenerics, deprecated: func.isDeprecated);
 
@@ -1505,20 +1463,17 @@ String renderPropertyPage(
 
   final kindLabel = prop.isConst ? 'constant' : 'property';
 
+  final sidebarKind = prop.isConst ? 'Constants' : 'Properties';
+
   builder.writeFrontmatter(
     title: '${prop.name} $kindLabel',
     description: 'API documentation for the ${prop.name} $kindLabel '
         'from ${library.name}',
     outline: false,
+    category: sidebarKind,
   );
 
-  final sidebarKind = prop.isConst ? 'Constants' : 'Properties';
-  final libraryUrl = '/api/${paths.dirNameFor(library)}/';
-  builder.writeBreadcrumbs([
-    (library.name, libraryUrl),
-    (sidebarKind, null),
-    (prop.name, null),
-  ]);
+  builder.writeBreadcrumbComponent();
 
   builder.writeH1(prop.name, deprecated: prop.isDeprecated);
 
@@ -1570,14 +1525,10 @@ String renderTypedefPage(
     description: 'API documentation for the $nameWithGenerics typedef '
         'from ${library.name}',
     outline: false,
+    category: 'Typedefs',
   );
 
-  final libraryUrl = '/api/${paths.dirNameFor(library)}/';
-  builder.writeBreadcrumbs([
-    (library.name, libraryUrl),
-    ('Typedefs', null),
-    (nameWithGenerics, null),
-  ]);
+  builder.writeBreadcrumbComponent();
 
   builder.writeH1(nameWithGenerics, deprecated: td.isDeprecated);
 

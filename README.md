@@ -153,6 +153,52 @@ Don't forget: **Settings → Pages → Source: GitHub Actions**.
 
 All original dartdoc options (`--exclude`, `--include`, `--header`, etc.) are still supported.
 
+## Extensible Plugin Architecture
+
+The generated site is a standard VitePress project — you can add custom markdown-it plugins, Vue components, and CSS to extend functionality beyond what dartdoc provides.
+
+### Bundled plugin examples
+
+These are not part of the generator itself, but patterns you can add to `docs-site/.vitepress/theme/plugins/`:
+
+#### API Auto-linker
+
+A markdown-it plugin that scans the generated `api/` directory at build time and automatically converts inline code references in guide pages to clickable links pointing to API docs.
+
+Write `` `ModuleScope` `` in your guide — it renders as a styled link to `/api/your_package/ModuleScope`. Handles dotted access (`` `Modularity.observer` ``), generics (`` `ModuleScope<Auth>` ``), and skips Dart/Flutter built-in types.
+
+```ts
+// .vitepress/theme/plugins/api-linker.ts
+// Scans api/ at init, builds symbol map, transforms code_inline tokens
+md.use(apiLinkerPlugin)
+```
+
+#### Interactive DartPad Embeds
+
+A markdown-it plugin + Vue component that turns ` ```dartpad ` code fences into interactive playgrounds with syntax highlighting, a "Run" button, and a DartPad iframe — all without leaving the docs page.
+
+```markdown
+  ```dartpad height=400 mode=flutter
+  import 'package:flutter/material.dart';
+  void main() => runApp(const Text('Hello'));
+  ```
+```
+
+#### API Breadcrumbs
+
+A Vue component (`<ApiBreadcrumb />`) auto-injected into API pages that renders `package > category > class` navigation from the route path and frontmatter.
+
+### Why this matters
+
+Standard dartdoc generates a closed HTML output. dartdoc-vitepress generates **open markdown + TypeScript data** that you can extend:
+
+| What you can add | How |
+|---|---|
+| Custom markdown-it plugins | `md.use(yourPlugin)` in `config.ts` |
+| Vue components in markdown | Register in `theme/index.ts`, use in `.md` files |
+| Theme customization | `custom.css` or full theme override |
+| Build-time data transforms | Import generated `api-sidebar.ts` or scan `api/` directory |
+
 ## Upstream
 
 Based on [dart-lang/dartdoc v9.0.2](https://github.com/dart-lang/dartdoc) (commit `af008503`).

@@ -26,9 +26,41 @@
   border: none;
 }
 
+.dartpad-code pre {
+  padding-left: 0 !important;
+}
+
+.dartpad-code code {
+  padding: 0 !important;
+}
+
 .dartpad-code .copy {
   /* Hide VitePress copy button — DartPad toolbar has its own */
   display: none;
+}
+
+/* Line numbers — hidden by default, visible on hover, never copied */
+
+.dartpad-code code {
+  counter-reset: dartpad-line;
+}
+
+.dartpad-code .line::before {
+  counter-increment: dartpad-line;
+  content: counter(dartpad-line);
+  display: inline-block;
+  width: 2ch;
+  margin-left: 2px;
+  margin-right: 8px;
+  text-align: right;
+  color: transparent;
+  user-select: none;
+  pointer-events: none;
+  transition: color 0.2s;
+}
+
+.dartpad-code:hover .line::before {
+  color: var(--vp-c-text-4, rgba(128, 128, 128, 0.4));
 }
 
 .dartpad-toolbar {
@@ -43,19 +75,19 @@
 .dartpad-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 12px;
+  justify-content: center;
+  padding: 6px;
   border: 1px solid var(--vp-c-divider);
   border-radius: 4px;
   background: var(--vp-c-bg);
-  color: var(--vp-c-text-1);
-  font-size: 13px;
+  color: var(--vp-c-text-2);
   cursor: pointer;
   transition: border-color 0.2s, background-color 0.2s, color 0.2s;
 }
 
 .dartpad-btn:hover {
   border-color: var(--vp-c-brand-1);
+  color: var(--vp-c-brand-1);
   background: var(--vp-c-bg-mute);
 }
 
@@ -66,11 +98,6 @@
 
 .dartpad-run {
   color: var(--vp-c-brand-1);
-  font-weight: 600;
-}
-
-.dartpad-btn-icon {
-  font-size: 11px;
 }
 
 .dartpad-active {
@@ -109,4 +136,22 @@
   .dartpad-toolbar {
     flex-wrap: wrap;
   }
+}
+
+/* API auto-linker — inline code that links to API docs */
+
+a.api-link {
+  text-decoration: none;
+}
+
+a.api-link code {
+  color: var(--vp-c-brand-1);
+  border-bottom: 2px solid color-mix(in srgb, var(--vp-c-brand-1) 50%, transparent);
+  padding-bottom: 1px;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+a.api-link:hover code {
+  color: var(--vp-c-brand-2);
+  border-bottom-color: var(--vp-c-brand-1);
 }

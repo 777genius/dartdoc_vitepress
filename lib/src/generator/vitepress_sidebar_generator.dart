@@ -177,8 +177,8 @@ class VitePressSidebarGenerator {
     buf.writeln('$pad  collapsed: $libraryCollapsed,');
     buf.writeln('$pad  items: [');
 
-    // Overview link (relative to base -> '/').
-    buf.writeln("$pad    { text: 'Overview', link: '/' },");
+    // Overview link (relative to base).
+    buf.writeln("$pad    { text: 'Overview', link: 'index' },");
 
     // Kind groups in the specified order.
     _writeKindGroup(
@@ -363,16 +363,19 @@ class VitePressSidebarGenerator {
     required int indent,
   }) {
     final pad = ' ' * indent;
-    final url = paths.urlFor(element) ?? '/${element.name}';
+    final url = paths.urlFor(element) ?? element.name;
     final dirName = paths.dirNameFor(library);
     final base = '/api/$dirName/';
 
     // Make link relative to the library base.
     String link;
     if (url.startsWith(base)) {
-      link = '/${url.substring(base.length)}';
+      link = url.substring(base.length);
+    } else if (url.startsWith('/api/')) {
+      // Cross-package: relative to current library base.
+      link = '../${url.substring('/api/'.length)}';
     } else {
-      // Fallback: use absolute path.
+      // Fallback: use as-is.
       link = url;
     }
 
