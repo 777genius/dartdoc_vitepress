@@ -35,7 +35,7 @@ jobs:
 
       # Use the local dartdoc (dogfooding!)
       - name: Generate API docs
-        run: dart run bin/dartdoc.dart --format vitepress --output docs-site
+        run: dart run bin/dartdoc_vitepress.dart --format vitepress --output docs-site
 
       - name: Install dependencies
         run: npm ci

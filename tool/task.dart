@@ -161,7 +161,7 @@ Future<void> buildDartdocOptions() async {
   await dartdocOptions.writeAsString('''dartdoc:
   linkToSource:
     root: '.'
-    uriTemplate: 'https://github.com/dart-lang/dartdoc/blob/v$version/%f%#L%l%'
+    uriTemplate: 'https://github.com/777genius/dartdoc_vitepress/blob/v$version/%f%#L%l%'
 ''');
 }
 
