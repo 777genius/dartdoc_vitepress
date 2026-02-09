@@ -437,7 +437,7 @@ Future<String> docPackage({
   var executable = Platform.executable;
   var arguments = [
     '--enable-asserts',
-    path.join(Directory.current.absolute.path, 'bin', 'dartdoc.dart'),
+    path.join(Directory.current.absolute.path, 'bin', 'dartdoc_vitepress.dart'),
     '--link-to-remote',
     '--show-progress',
     '--show-stats',
@@ -518,7 +518,7 @@ Future<String> docTestingPackage({
   await launcher.runStreamedDartCommand(
     [
       '--enable-asserts',
-      path.join(Directory.current.absolute.path, 'bin', 'dartdoc.dart'),
+      path.join(Directory.current.absolute.path, 'bin', 'dartdoc_vitepress.dart'),
       '--output',
       outputPath,
       '--include-source',
@@ -588,7 +588,7 @@ Future<Iterable<Map<String, Object?>>> _docSdk({
   var output = await launcher.runStreamedDartCommand(
     [
       '--enable-asserts',
-      path.join('bin', 'dartdoc.dart'),
+      path.join('bin', 'dartdoc_vitepress.dart'),
       '--output',
       sdkDocsPath,
       '--sdk-docs',
@@ -872,7 +872,7 @@ Future<void> validateDartdocDocs() async {
   var launcher = SubprocessLauncher('test-dartdoc');
   await launcher.runStreamedDartCommand([
     '--enable-asserts',
-    path.join('bin', 'dartdoc.dart'),
+    path.join('bin', 'dartdoc_vitepress.dart'),
     '--output',
     _dartdocDocsPath,
     '--no-link-to-remote',
