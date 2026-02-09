@@ -279,16 +279,22 @@ class VitePressSidebarGenerator {
     required int indent,
     required int collapseThreshold,
   }) {
-    if (elements.isEmpty) return;
+    // Filter out re-exported elements — only show elements whose canonical
+    // library is this library (or that have no canonical library assigned).
+    final filtered = elements
+        .where((e) =>
+            e.canonicalLibrary == null || e.canonicalLibrary == library)
+        .toList();
+    if (filtered.isEmpty) return;
 
     final pad = ' ' * indent;
-    final collapsed = elements.length > collapseThreshold;
+    final collapsed = filtered.length > collapseThreshold;
 
     // Determine category distribution for sub-grouping.
     final categoryMap = <String, List<ModelElement>>{};
     final uncategorized = <ModelElement>[];
 
-    for (final element in elements) {
+    for (final element in filtered) {
       final categories = element.displayedCategories.toList();
       if (categories.isEmpty) {
         uncategorized.add(element);
@@ -336,7 +342,7 @@ class VitePressSidebarGenerator {
       }
     } else {
       // Flat list without category sub-grouping.
-      for (final element in elements) {
+      for (final element in filtered) {
         _writeElementItem(buf, element, library, indent: indent + 4);
       }
     }
