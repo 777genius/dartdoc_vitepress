@@ -125,7 +125,7 @@ class VitePressGeneratorBackend extends GeneratorBackend {
     // Generate sidebar from the full PackageGraph.
     var sidebarContent = _sidebar.generate(packageGraph);
     _writeMarkdown(
-      p.join('.vitepress', 'generated', 'api-sidebar.ts'),
+      '.vitepress/generated/api-sidebar.ts',
       sidebarContent,
     );
 
@@ -148,14 +148,14 @@ class VitePressGeneratorBackend extends GeneratorBackend {
     }
 
     // Track scaffold guide/index.md so stale cleanup doesn't delete it.
-    _expectedFiles.add(p.join('guide', 'index.md'));
+    _expectedFiles.add('guide/index.md');
 
     var guideSidebarContent = guideGen.generateSidebar(
       guideEntries,
       isMultiPackage: isMultiPackage,
     );
     _writeMarkdown(
-      p.join('.vitepress', 'generated', 'guide-sidebar.ts'),
+      '.vitepress/generated/guide-sidebar.ts',
       guideSidebarContent,
     );
 

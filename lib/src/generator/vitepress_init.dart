@@ -61,7 +61,7 @@ class VitePressInitGenerator {
     _writeTemplateIfAbsent(
       templateDir: templateDir,
       templateFile: 'config.ts',
-      outputFile: p.join('.vitepress', 'config.ts'),
+      outputFile: '.vitepress/config.ts',
       placeholders: placeholders,
     );
     _writeTemplateIfAbsent(
@@ -73,7 +73,7 @@ class VitePressInitGenerator {
     _writeTemplateIfAbsent(
       templateDir: templateDir,
       templateFile: 'guide-index.md',
-      outputFile: p.join('guide', 'index.md'),
+      outputFile: 'guide/index.md',
       placeholders: placeholders,
     );
 
@@ -81,13 +81,13 @@ class VitePressInitGenerator {
     _writeTemplateIfAbsent(
       templateDir: templateDir,
       templateFile: p.join('theme', 'index.ts'),
-      outputFile: p.join('.vitepress', 'theme', 'index.ts'),
+      outputFile: '.vitepress/theme/index.ts',
       placeholders: placeholders,
     );
     _writeTemplateIfAbsent(
       templateDir: templateDir,
       templateFile: p.join('theme', 'custom.css'),
-      outputFile: p.join('.vitepress', 'theme', 'custom.css'),
+      outputFile: '.vitepress/theme/custom.css',
       placeholders: placeholders,
     );
 
@@ -95,13 +95,13 @@ class VitePressInitGenerator {
     _writeTemplateIfAbsent(
       templateDir: templateDir,
       templateFile: p.join('theme', 'components', 'DartPad.vue'),
-      outputFile: p.join('.vitepress', 'theme', 'components', 'DartPad.vue'),
+      outputFile: '.vitepress/theme/components/DartPad.vue',
       placeholders: placeholders,
     );
     _writeTemplateIfAbsent(
       templateDir: templateDir,
       templateFile: p.join('theme', 'plugins', 'dartpad.ts'),
-      outputFile: p.join('.vitepress', 'theme', 'plugins', 'dartpad.ts'),
+      outputFile: '.vitepress/theme/plugins/dartpad.ts',
       placeholders: placeholders,
     );
 
@@ -111,7 +111,7 @@ class VitePressInitGenerator {
     // generation will overwrite this file via _writeMarkdown, and the
     // writer's duplicate-file detection would trigger an assertion.
     _writeFileToDisk(
-      outputFile: p.join('.vitepress', 'generated', 'guide-sidebar.ts'),
+      outputFile: '.vitepress/generated/guide-sidebar.ts',
       content: "import type { DefaultTheme } from 'vitepress'\n\n"
           'export const guideSidebar: DefaultTheme.Sidebar = {}\n',
     );
