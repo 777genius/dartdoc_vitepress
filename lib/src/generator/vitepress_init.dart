@@ -148,7 +148,7 @@ class VitePressInitGenerator {
     required String outputFile,
     required String content,
   }) {
-    final fullOutputPath = p.join(outputPath, outputFile);
+    final fullOutputPath = p.normalize(p.join(outputPath, outputFile));
     final existingFile = resourceProvider.getFile(fullOutputPath);
     if (existingFile.exists) return;
 
@@ -169,7 +169,9 @@ class VitePressInitGenerator {
     required Map<String, String> placeholders,
   }) {
     // Skip if output file already exists.
-    final fullOutputPath = p.join(outputPath, outputFile);
+    // outputFile uses POSIX separators (for writer.write()); normalize
+    // to platform separators before accessing the file system.
+    final fullOutputPath = p.normalize(p.join(outputPath, outputFile));
     final existingFile = resourceProvider.getFile(fullOutputPath);
     if (existingFile.exists) return;
 
