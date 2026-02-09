@@ -6,6 +6,7 @@ import { dartpadPlugin } from './theme/plugins/dartpad'
 export default defineConfig({
   title: 'dartdoc-vitepress',
   description: 'Modern API documentation generator for Dart — VitePress fork of dartdoc',
+  base: '/dartdoc_vitepress/',
   ignoreDeadLinks: true,
   markdown: {
     config: (md) => {
