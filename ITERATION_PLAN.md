@@ -860,7 +860,7 @@ String pathForElement(ModelElement element) {
      Sidebar is built from `packageGraph.localPackages` → libraries → elements.
    - Overrides `write()` to skip `htmlBasePlaceholder` logic, write .md files
 
-**Verify:** `dartdoc --format vitepress --output docs/` produces empty-stub .md files.
+**Verify:** `dartdoc_vitepress --format vitepress --output docs/` produces empty-stub .md files.
 
 ### Phase 2: Path resolver + doc processor (Day 3-5)
 
@@ -990,7 +990,7 @@ String pathForElement(ModelElement element) {
 **New file:**
 
 9. **`lib/src/generator/vitepress_init.dart`** (~100 lines)
-   - `dartdoc --format vitepress --output docs/ --init` creates:
+   - `dartdoc_vitepress --format vitepress --output docs/ --init` creates:
      - `package.json` with `vitepress: ^1.6.4`
      - `.vitepress/config.ts` importing `./generated/api-sidebar`
      - `index.md` with VitePress hero section
@@ -1076,10 +1076,10 @@ String pathForElement(ModelElement element) {
 
 ```bash
 # Generate VitePress docs (main command)
-dartdoc --format vitepress --output docs/
+dartdoc_vitepress --format vitepress --output docs/
 
 # Initialize VitePress project scaffold (first time, no generation)
-dartdoc --format vitepress --output docs/ --init
+dartdoc_vitepress --format vitepress --output docs/ --init
 
 # Original HTML generation (unchanged, default)
 dartdoc --output doc/api/
@@ -1203,7 +1203,7 @@ elements, use path-based sidebar routing. See updated Sidebar Specification.
 
 ## Success Criteria
 
-1. `dartdoc --format vitepress --output docs/` generates valid VitePress site
+1. `dartdoc_vitepress --format vitepress --output docs/` generates valid VitePress site
 2. All public classes, methods, properties, enums, mixins, extensions, extension types, typedefs documented
 3. Cross-references between elements work as markdown links
 4. Sidebar navigation reflects package structure with all element kinds

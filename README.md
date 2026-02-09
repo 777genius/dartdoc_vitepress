@@ -19,20 +19,18 @@ The fork adds a `--format vitepress` option while keeping full backward compatib
 ## Installation
 
 ```bash
-# From this fork (recommended)
-dart pub global activate \
-  --source git https://github.com/777genius/dartdoc_vitepress.git \
-  --git-ref main
+# From pub.dev (recommended)
+dart pub global activate dartdoc_vitepress
 ```
 
 ## Quick Start
 
 ```bash
 # Generate VitePress docs for a single package
-dart pub global run dartdoc --format vitepress --output docs-site
+dart pub global run dartdoc_vitepress --format vitepress --output docs-site
 
 # Generate docs for a Dart workspace (mono-repo)
-dart pub global run dartdoc \
+dart pub global run dartdoc_vitepress \
   --format vitepress \
   --workspace-docs \
   --exclude-packages 'example_app,test_utils' \
@@ -109,10 +107,10 @@ jobs:
           cache-dependency-path: docs-site/package-lock.json
 
       - name: Install dartdoc-vitepress
-        run: dart pub global activate --source git https://github.com/777genius/dartdoc_vitepress.git --git-ref main
+        run: dart pub global activate dartdoc_vitepress
 
       - name: Generate API docs
-        run: dart pub global run dartdoc --format vitepress --output docs-site
+        run: dart pub global run dartdoc_vitepress --format vitepress --output docs-site
 
       - run: npm ci
         working-directory: docs-site
