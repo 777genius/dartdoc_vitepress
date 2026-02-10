@@ -1,3 +1,17 @@
+## 1.1.0
+
+* **Sidebar fixes:**
+  * Fix re-export filtering — elements with `canonicalLibrary == null` no longer leak into every re-exporting library's sidebar.
+  * `_countLibraryElements` now excludes re-exports, fixing inflated collapse thresholds and path-based routing decisions.
+  * Skip elements without a generated page instead of using unsanitized `element.name` as link fallback.
+  * Propagate `forceExpand` to kind-groups in path-based routing so Classes/Enums/etc are expanded.
+  * Fix Overview link active state highlighting (`'index'` → `'index.md'`).
+
+* **Theme enhancements:**
+  * Add `vitepress-codeblock-collapse` plugin for collapsible long code blocks.
+  * Add `vitepress-mermaid-zoom` plugin for zoomable Mermaid diagrams.
+  * Scaffold `CLAUDE.md` and `AGENTS.md` for LLM-aware documentation projects.
+
 ## 9.0.2
 * Require analyzer 10.0.0 APIs.
 
