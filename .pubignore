@@ -9,6 +9,8 @@
 .vscode/
 build/
 doc/
+docs-site/
+js-packages/
 lcov.info
 packages
 test_data/
