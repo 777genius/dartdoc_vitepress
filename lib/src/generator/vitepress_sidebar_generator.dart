@@ -112,7 +112,7 @@ class VitePressSidebarGenerator {
         final dirName = paths.dirNameFor(library);
         final base = '/api/$dirName/';
         buf.writeln("  '${_escapeTs(base)}': [");
-        _writeLibraryGroup(buf, library, indent: 4);
+        _writeLibraryGroup(buf, library, indent: 4, forceExpand: true);
         buf.writeln('  ],');
       }
     }
@@ -160,14 +160,18 @@ class VitePressSidebarGenerator {
   }
 
   /// Writes a single library sidebar group with `base` path deduplication.
+  ///
+  /// When [forceExpand] is true the root group is never collapsed — used in
+  /// path-based routing where the user already navigated to this library.
   void _writeLibraryGroup(
     StringBuffer buf,
     Library library, {
     required int indent,
+    bool forceExpand = false,
   }) {
     final pad = ' ' * indent;
     final totalElements = _countLibraryElements(library);
-    final libraryCollapsed = totalElements > 30;
+    final libraryCollapsed = !forceExpand && totalElements > 30;
     final dirName = paths.dirNameFor(library);
     final base = '/api/$dirName/';
 
@@ -178,7 +182,7 @@ class VitePressSidebarGenerator {
     buf.writeln('$pad  items: [');
 
     // Overview link (relative to base).
-    buf.writeln("$pad    { text: 'Overview', link: 'index' },");
+    buf.writeln("$pad    { text: 'Overview', link: 'index.md' },");
 
     // Kind groups in the specified order.
     _writeKindGroup(
@@ -188,6 +192,7 @@ class VitePressSidebarGenerator {
       library.publicClassesSorted,
       indent: indent + 4,
       collapseThreshold: 8,
+      forceExpand: forceExpand,
     );
     _writeKindGroup(
       buf,
@@ -196,6 +201,7 @@ class VitePressSidebarGenerator {
       library.publicExceptionsSorted,
       indent: indent + 4,
       collapseThreshold: 8,
+      forceExpand: forceExpand,
     );
     _writeKindGroup(
       buf,
@@ -204,6 +210,7 @@ class VitePressSidebarGenerator {
       library.publicEnumsSorted,
       indent: indent + 4,
       collapseThreshold: 8,
+      forceExpand: forceExpand,
     );
     _writeKindGroup(
       buf,
@@ -212,6 +219,7 @@ class VitePressSidebarGenerator {
       library.publicMixinsSorted,
       indent: indent + 4,
       collapseThreshold: 8,
+      forceExpand: forceExpand,
     );
     _writeKindGroup(
       buf,
@@ -220,6 +228,7 @@ class VitePressSidebarGenerator {
       library.publicExtensionsSorted,
       indent: indent + 4,
       collapseThreshold: 8,
+      forceExpand: forceExpand,
     );
     _writeKindGroup(
       buf,
@@ -228,6 +237,7 @@ class VitePressSidebarGenerator {
       library.publicExtensionTypesSorted,
       indent: indent + 4,
       collapseThreshold: 8,
+      forceExpand: forceExpand,
     );
     _writeKindGroup(
       buf,
@@ -236,6 +246,7 @@ class VitePressSidebarGenerator {
       library.publicFunctionsSorted,
       indent: indent + 4,
       collapseThreshold: 10,
+      forceExpand: forceExpand,
     );
     _writeKindGroup(
       buf,
@@ -244,6 +255,7 @@ class VitePressSidebarGenerator {
       library.publicPropertiesSorted,
       indent: indent + 4,
       collapseThreshold: 10,
+      forceExpand: forceExpand,
     );
     _writeKindGroup(
       buf,
@@ -252,6 +264,7 @@ class VitePressSidebarGenerator {
       library.publicConstantsSorted,
       indent: indent + 4,
       collapseThreshold: 10,
+      forceExpand: forceExpand,
     );
     _writeKindGroup(
       buf,
@@ -260,6 +273,7 @@ class VitePressSidebarGenerator {
       library.publicTypedefsSorted,
       indent: indent + 4,
       collapseThreshold: 8,
+      forceExpand: forceExpand,
     );
 
     buf.writeln('$pad  ],');
@@ -278,17 +292,17 @@ class VitePressSidebarGenerator {
     List<ModelElement> elements, {
     required int indent,
     required int collapseThreshold,
+    bool forceExpand = false,
   }) {
-    // Filter out re-exported elements — only show elements whose canonical
-    // library is this library (or that have no canonical library assigned).
+    // Filter out re-exported elements — only show elements that belong to
+    // this library (canonical library matches, or own library for unresolved).
     final filtered = elements
-        .where((e) =>
-            e.canonicalLibrary == null || e.canonicalLibrary == library)
+        .where((e) => _belongsToLibrary(e, library))
         .toList();
     if (filtered.isEmpty) return;
 
     final pad = ' ' * indent;
-    final collapsed = filtered.length > collapseThreshold;
+    final collapsed = !forceExpand && filtered.length > collapseThreshold;
 
     // Determine category distribution for sub-grouping.
     final categoryMap = <String, List<ModelElement>>{};
@@ -362,8 +376,10 @@ class VitePressSidebarGenerator {
     Library library, {
     required int indent,
   }) {
+    final url = paths.urlFor(element);
+    if (url == null) return; // Skip elements without a generated page.
+
     final pad = ' ' * indent;
-    final url = paths.urlFor(element) ?? element.name;
     final dirName = paths.dirNameFor(library);
     final base = '/api/$dirName/';
 
@@ -384,18 +400,31 @@ class VitePressSidebarGenerator {
     );
   }
 
-  /// Counts the total number of documented public elements in a library.
+  /// Whether [element] belongs to [library]'s sidebar (not a re-export).
+  static bool _belongsToLibrary(ModelElement e, Library library) {
+    final canonical = e.canonicalLibrary;
+    if (canonical == null) {
+      // No canonical library — only show in the element's own library.
+      return e.library == library;
+    }
+    return canonical == library;
+  }
+
+  /// Counts the total number of documented public elements in a library,
+  /// excluding re-exported elements that belong to other libraries.
   int _countLibraryElements(Library library) {
-    return library.publicClassesSorted.length +
-        library.publicExceptionsSorted.length +
-        library.publicEnumsSorted.length +
-        library.publicMixinsSorted.length +
-        library.publicExtensionsSorted.length +
-        library.publicExtensionTypesSorted.length +
-        library.publicFunctionsSorted.length +
-        library.publicPropertiesSorted.length +
-        library.publicConstantsSorted.length +
-        library.publicTypedefsSorted.length;
+    int count(List<ModelElement> elements) =>
+        elements.where((e) => _belongsToLibrary(e, library)).length;
+    return count(library.publicClassesSorted) +
+        count(library.publicExceptionsSorted) +
+        count(library.publicEnumsSorted) +
+        count(library.publicMixinsSorted) +
+        count(library.publicExtensionsSorted) +
+        count(library.publicExtensionTypesSorted) +
+        count(library.publicFunctionsSorted) +
+        count(library.publicPropertiesSorted) +
+        count(library.publicConstantsSorted) +
+        count(library.publicTypedefsSorted);
   }
 
   static String _escapeTs(String value) => escapeForTs(value);
