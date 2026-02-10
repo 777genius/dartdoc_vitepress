@@ -8,6 +8,8 @@
     "preview": "vitepress preview"
   },
   "devDependencies": {
-    "vitepress": "^1.6.4"
+    "vitepress": "^1.6.4",
+    "vitepress-codeblock-collapse": "^1.0.0",
+    "vitepress-mermaid-zoom": "^1.0.1"
   }
 }

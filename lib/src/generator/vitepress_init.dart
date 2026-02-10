@@ -77,6 +77,20 @@ class VitePressInitGenerator {
       placeholders: placeholders,
     );
 
+    // LLM instructions (so AI tools know what's generated vs editable)
+    _writeTemplateIfAbsent(
+      templateDir: templateDir,
+      templateFile: 'CLAUDE.md',
+      outputFile: 'CLAUDE.md',
+      placeholders: placeholders,
+    );
+    _writeTemplateIfAbsent(
+      templateDir: templateDir,
+      templateFile: 'AGENTS.md',
+      outputFile: 'AGENTS.md',
+      placeholders: placeholders,
+    );
+
     // Theme customization (glassmorphism nav)
     _writeTemplateIfAbsent(
       templateDir: templateDir,

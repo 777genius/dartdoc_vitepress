@@ -9,5 +9,9 @@
   },
   "devDependencies": {
     "vitepress": "^1.6.4"
+  },
+  "dependencies": {
+    "vitepress-codeblock-collapse": "^1.0.0",
+    "vitepress-mermaid-zoom": "^1.0.0"
   }
 }

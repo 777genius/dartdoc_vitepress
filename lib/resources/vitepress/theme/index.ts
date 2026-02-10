@@ -1,4 +1,10 @@
+import { computed } from 'vue'
 import DefaultTheme from 'vitepress/theme'
+import { useData } from 'vitepress'
+import { useCodeblockCollapse } from 'vitepress-codeblock-collapse'
+import 'vitepress-codeblock-collapse/style.css'
+import { useMermaidZoom } from 'vitepress-mermaid-zoom'
+import 'vitepress-mermaid-zoom/style.css'
 import './custom.css'
 import DartPad from './components/DartPad.vue'
 import ApiBreadcrumb from './components/ApiBreadcrumb.vue'
@@ -8,5 +14,11 @@ export default {
   enhanceApp({ app }) {
     app.component('DartPad', DartPad)
     app.component('ApiBreadcrumb', ApiBreadcrumb)
+  },
+  setup() {
+    const { page } = useData()
+    const pagePath = computed(() => page.value.relativePath)
+    useCodeblockCollapse(pagePath)
+    useMermaidZoom(pagePath)
   }
 }
