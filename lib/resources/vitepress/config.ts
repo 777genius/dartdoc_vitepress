@@ -3,6 +3,7 @@ import { apiSidebar } from './generated/api-sidebar'
 import { guideSidebar } from './generated/guide-sidebar'
 import { dartpadPlugin } from './theme/plugins/dartpad'
 import { apiLinkerPlugin } from './theme/plugins/api-linker'
+import llmstxt, { copyOrDownloadAsMarkdownButtons } from 'vitepress-plugin-llms'
 
 export default defineConfig({
   title: '{{packageName}} API',
@@ -12,10 +13,14 @@ export default defineConfig({
   ignoreDeadLinks: true,
   // Show "Last updated" timestamps on pages (requires git history).
   lastUpdated: true,
+  vite: {
+    plugins: [llmstxt()],
+  },
   markdown: {
     config: (md) => {
       md.use(dartpadPlugin)
       md.use(apiLinkerPlugin)
+      md.use(copyOrDownloadAsMarkdownButtons)
     },
   },
   themeConfig: {
