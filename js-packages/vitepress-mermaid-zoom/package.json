@@ -1,0 +1,61 @@
+{
+  "name": "vitepress-mermaid-zoom",
+  "version": "1.0.2",
+  "description": "Click-to-zoom fullscreen overlay for Mermaid diagrams in VitePress",
+  "author": "Iliya Zel <iliyazelenkog@gmail.com>",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./style.css": "./dist/style.css"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "sideEffects": [
+    "./dist/style.css"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/777genius/dartdoc_vitepress.git",
+    "directory": "js-packages/vitepress-mermaid-zoom"
+  },
+  "bugs": {
+    "url": "https://github.com/777genius/dartdoc_vitepress/issues"
+  },
+  "homepage": "https://github.com/777genius/dartdoc_vitepress/tree/main/js-packages/vitepress-mermaid-zoom#readme",
+  "keywords": [
+    "vitepress",
+    "mermaid",
+    "zoom",
+    "fullscreen",
+    "diagram",
+    "vue",
+    "vue3"
+  ],
+  "peerDependencies": {
+    "vue": "^3.3.0"
+  },
+  "devDependencies": {
+    "jsdom": "^26.0.0",
+    "tsup": "^8.4.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0",
+    "vue": "^3.5.0"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  }
+}

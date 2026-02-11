@@ -1,3 +1,15 @@
+## 1.1.1
+
+* **Mermaid diagrams:**
+  * Center mermaid diagrams on the page instead of left-aligning.
+  * Show zoom-out cursor when diagram is in fullscreen mode.
+  * Bump `vitepress-mermaid-zoom` to 1.0.2.
+
+* **Breadcrumb & library naming:**
+  * Fix `dirName` for anonymous libraries with `file:` URIs in multi-package workspace mode on CI — produces clean paths like `src_browser_opener` instead of `file-___home_runner_work_...`.
+  * Add `library` field to frontmatter for human-readable breadcrumb display.
+  * Update `ApiBreadcrumb` component to use frontmatter library name.
+
 ## 1.1.0
 
 * **Sidebar fixes:**

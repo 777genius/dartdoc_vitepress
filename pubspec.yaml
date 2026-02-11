@@ -1,5 +1,5 @@
 name: dartdoc_vitepress
-version: 1.1.0
+version: 1.1.1
 description: Fork of dartdoc with VitePress backend — generates modern static documentation sites with auto-linking, interactive DartPad embeds, and full Vue.js theming.
 repository: https://github.com/777genius/dartdoc_vitepress
 
