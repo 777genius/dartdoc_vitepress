@@ -3,11 +3,16 @@ import { apiSidebar } from './generated/api-sidebar'
 import { guideSidebar } from './generated/guide-sidebar'
 import { dartpadPlugin } from './theme/plugins/dartpad'
 import { apiLinkerPlugin } from './theme/plugins/api-linker'
+// To disable llmstxt for large builds (OOM with 2000+ pages):
+//   1. Comment out llmstxt() in vite.plugins
+//   2. Comment out md.use(copyOrDownloadAsMarkdownButtons) in markdown.config
+//   3. Remove CopyOrDownloadAsMarkdownButtons import in theme/index.ts
 import llmstxt, { copyOrDownloadAsMarkdownButtons } from 'vitepress-plugin-llms'
 
 export default defineConfig({
   title: '{{packageName}} API',
   description: 'API documentation for {{packageName}}',
+  srcExclude: ['CLAUDE.md', 'AGENTS.md'],
   // Cross-references to SDK types (dart:core, dart:collection) produce
   // dead links since we only generate docs for this package.
   ignoreDeadLinks: true,

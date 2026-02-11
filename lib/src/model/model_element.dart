@@ -536,8 +536,9 @@ abstract class ModelElement
   }
 
   @override
-  String get documentation => injectMacros(
-      documentationFrom.map((e) => e.documentationLocal).join('<p>'));
+  String get documentation => injectMacros(documentationFrom
+      .map((e) => e.documentationLocal)
+      .join('\n\nDARTDOC_PARAGRAPH_BREAK\n\n'));
 
   /// The [ModelElement]s from which we will get documentation.
   ///

@@ -117,7 +117,7 @@ class _InlineCodeSyntax extends md.InlineSyntax {
 /// The processor performs these steps:
 /// 1. Reads the `documentation` getter (pre-HTML markdown with bracket refs)
 /// 2. Resolves `{@inject-html}` placeholders via [PackageGraph.getHtmlFragment]
-/// 3. Replaces `<p>` joiners with `\n\n` (safety net for multi-source docs)
+/// 3. Removes `DARTDOC_PARAGRAPH_BREAK` markers (multi-source doc joiners)
 /// 4. Parses through the markdown parser with a custom `linkResolver` to
 ///    resolve `[ClassName]` bracket references into VitePress-compatible links
 /// 5. Serializes the resolved AST back to markdown via [MarkdownRenderer]
@@ -255,7 +255,7 @@ class VitePressDocProcessor {
   /// Performs four transformations in order:
   /// 1. Replaces `<dartdoc-html>` placeholders with non-HTML markers
   /// 2. Strips `htmlBasePlaceholder` strings (irrelevant for VitePress)
-  /// 3. Replaces `<p>` joiners with double newlines (preserving inline code)
+  /// 3. Removes `DARTDOC_PARAGRAPH_BREAK` markers (multi-source doc joiners)
   /// 4. Strips unresolved `{@tool}` directives (Flutter-specific)
 
   String _preprocess(String text) {
@@ -273,13 +273,13 @@ class VitePressDocProcessor {
     // that has no meaning in VitePress output.
     text = text.replaceAll(_htmlBasePlaceholder, '');
 
-    // Step 3: Replace `<p>` joiners with paragraph breaks.
+    // Step 3: Remove paragraph break markers.
     // The `documentation` getter joins multiple documentation sources with
-    // `<p>` (model_element.dart:540). This is a structural joiner between
-    // raw doc fragments, not an HTML tag in the document flow — it can appear
-    // adjacent to any character including backticks when a doc fragment ends
-    // with inline code (e.g. `` `Widget`<p>Next paragraph ``).
-    text = text.replaceAll('<p>', '\n\n');
+    // `\n\nDARTDOC_PARAGRAPH_BREAK\n\n` (model_element.dart:540).
+    // The marker itself is surrounded by newlines, so removing it preserves
+    // the paragraph separation without destroying literal `<p>` in content
+    // (e.g. "Creates a new `<p>` element").
+    text = text.replaceAll('DARTDOC_PARAGRAPH_BREAK', '');
 
     // Step 4: Strip unresolved {@tool} directives (Flutter-specific).
     // These produce interactive samples in Flutter docs but pass through
@@ -640,6 +640,15 @@ class MarkdownRenderer implements md.NodeVisitor {
   /// Content inside should NOT be escaped.
   bool _inInlineCode = false;
 
+  /// Whether we are currently inside a GitHub-style markdown alert block
+  /// (`<div class="markdown-alert-*">`), which needs to be converted to
+  /// VitePress `:::type` container syntax.
+  bool _inAlert = false;
+
+  /// Whether the alert title paragraph has already been skipped.
+  /// Reset to `false` when entering a new alert block.
+  bool _alertTitleSkipped = false;
+
   /// Collects table rows during table rendering.
   final List<List<String>> _tableRows = [];
 
@@ -660,49 +669,122 @@ class MarkdownRenderer implements md.NodeVisitor {
     return _buffer.toString().trimRight();
   }
 
-  /// Matches generic type parameter patterns like `<Object>`, `<T>`,
-  /// `<DiagnosticsNode>`, `<Key, Value>`.
-  ///
-  /// Pattern: `<` followed by an uppercase letter, then word chars and
-  /// optional nested generics/commas, closed by `>`.
-  static final _genericTypePattern = RegExp(
-    r'<([A-Z]\w*(?:\s*,\s*[A-Z]\w*)*(?:<[^>]*>)?)>',
-  );
-
   /// Matches HTML-like tags: opening (`<tag ...>`), closing (`</tag>`),
   /// or self-closing (`<tag ... />`).
   static final _htmlTagPattern = RegExp(
     r'<(/?[a-zA-Z][a-zA-Z0-9]*(?:-[a-zA-Z0-9]+)*)\b([^>]*)(/?)>',
   );
 
+  /// Escapes angle brackets in [content] using a bracket-counting approach.
+  ///
+  /// Generic type parameters (e.g. `Future<Map<String, dynamic>>`) are
+  /// escaped with backslashes (`\<...\>`) for correct VitePress rendering.
+  /// HTML-like tags (e.g. `<div>`, `</span>`) are escaped with entities
+  /// (`&lt;...&gt;`). Content inside backtick-delimited inline code is
+  /// left untouched.
+  ///
+  /// The function scans character by character, tracking nesting depth of
+  /// generic type brackets to correctly handle nested generics in a single
+  /// pass (avoiding the mixed-escaping bug from two sequential regex passes).
+  static String _escapeAngleBrackets(String content) {
+    final buf = StringBuffer();
+    final len = content.length;
+    var i = 0;
+
+    while (i < len) {
+      final ch = content[i];
+
+      // Skip inline code spans (backtick-delimited) without escaping.
+      if (ch == '`') {
+        final codeEnd = content.indexOf('`', i + 1);
+        if (codeEnd != -1) {
+          buf.write(content.substring(i, codeEnd + 1));
+          i = codeEnd + 1;
+          continue;
+        }
+      }
+
+      if (ch == '<') {
+        // Determine whether this `<` starts a generic type context.
+        // A generic type `<` is preceded by a word character (identifier end)
+        // and followed by an uppercase letter (type parameter start).
+        final isGeneric = i + 1 < len &&
+            _isUpperCase(content.codeUnitAt(i + 1)) &&
+            (i == 0 || _isWordChar(content.codeUnitAt(i - 1)));
+
+        if (isGeneric) {
+          // Scan through the generic bracket contents, tracking depth.
+          buf.write(r'\<');
+          i++;
+          var depth = 1;
+          while (i < len && depth > 0) {
+            final c = content[i];
+            if (c == '<') {
+              depth++;
+              buf.write(r'\<');
+              i++;
+            } else if (c == '>') {
+              depth--;
+              buf.write(r'\>');
+              i++;
+            } else {
+              buf.write(c);
+              i++;
+            }
+          }
+          continue;
+        }
+
+        // Not a generic -- check if it's an HTML-like tag.
+        final tagMatch = _htmlTagPattern.matchAsPrefix(content, i);
+        if (tagMatch != null) {
+          buf.write('&lt;${tagMatch[1]}${tagMatch[2]}${tagMatch[3]}&gt;');
+          i = tagMatch.end;
+          continue;
+        }
+
+        // Bare `<` that is neither generic nor HTML tag -- pass through.
+        buf.write(ch);
+        i++;
+      } else {
+        buf.write(ch);
+        i++;
+      }
+    }
+
+    return buf.toString();
+  }
+
+  /// Returns `true` if [code] is an uppercase ASCII letter (A-Z).
+  static bool _isUpperCase(int code) => code >= 0x41 && code <= 0x5A;
+
+  /// Returns `true` if [code] is a word character: `[a-zA-Z0-9_]`.
+  static bool _isWordChar(int code) =>
+      (code >= 0x41 && code <= 0x5A) || // A-Z
+      (code >= 0x61 && code <= 0x7A) || // a-z
+      (code >= 0x30 && code <= 0x39) || // 0-9
+      code == 0x5F; // _
+
   @override
   void visitText(md.Text text) {
     var content = text.textContent;
 
-    // Escape HTML tags and generic type parameters in non-code contexts.
+    // Escape angle brackets in non-code contexts.
     //
     // VitePress compiles markdown as Vue SFCs, so ANY raw HTML tag in
     // the markdown output triggers Vue's template compiler. Doc comments
     // often contain HTML tags as examples (e.g. `<menu>`, `<template>`,
     // `<video>`), which cause compile errors.
     //
-    // We escape ALL HTML tags to `&lt;...&gt;` and generic type parameters
-    // (like `<Object>`, `<T>`) to `\<...\>`. Intentional HTML from
-    // `{@inject-html}` is handled separately via DARTDOC_INJECT markers
-    // that bypass this escaping.
+    // Generic type parameters (like `Future<Map<String, dynamic>>`) are
+    // escaped with backslashes (`\<...\>`) for correct VitePress rendering.
+    // HTML-like tags (like `<div>`) are escaped with entities (`&lt;...&gt;`).
+    // Intentional HTML from `{@inject-html}` is handled separately via
+    // DARTDOC_INJECT markers that bypass this escaping.
     //
     // Code blocks and inline code are exempt (rendered verbatim).
     if (!_inCodeBlock && !_inInlineCode && content.contains('<')) {
-      // First escape generic type parameters (backslash style for markdown).
-      content = content.replaceAllMapped(
-        _genericTypePattern,
-        (m) => r'\<' '${m[1]}' r'\>',
-      );
-      // Then escape remaining HTML tags (entity style for Vue).
-      content = content.replaceAllMapped(
-        _htmlTagPattern,
-        (m) => '&lt;${m[1]}${m[2]}${m[3]}&gt;',
-      );
+      content = _escapeAngleBrackets(content);
     }
 
     if (_cellBuffer != null) {
@@ -730,6 +812,13 @@ class MarkdownRenderer implements md.NodeVisitor {
         return true;
 
       case 'p':
+        // Inside an alert block, the first <p> contains the alert title
+        // (e.g. "Note", "Warning"). VitePress generates this automatically,
+        // so we skip it.
+        if (_inAlert && !_alertTitleSkipped) {
+          _alertTitleSkipped = true;
+          return false; // Skip the title paragraph and its children.
+        }
         if (_isInsideBlockquote()) {
           // Paragraphs inside blockquotes: prefix with `> ` if not the first.
           if (_isNotFirstChild(element)) {
@@ -865,6 +954,30 @@ class MarkdownRenderer implements md.NodeVisitor {
         }
         return true;
 
+      case 'div':
+        final classAttr = element.attributes['class'] ?? '';
+        if (classAttr.contains('markdown-alert')) {
+          _ensureBlankLine();
+          final typeMatch =
+              RegExp(r'markdown-alert-(\w+)').firstMatch(classAttr);
+          final alertType = typeMatch?.group(1) ?? 'note';
+          const typeMap = {
+            'note': 'info',
+            'tip': 'tip',
+            'important': 'info',
+            'caution': 'warning',
+            'warning': 'danger',
+          };
+          final vpType = typeMap[alertType] ?? 'info';
+          _writelnToBuffer(':::$vpType');
+          _inAlert = true;
+          _alertTitleSkipped = false;
+          return true;
+        }
+        // Fall through to default safe HTML tag handling.
+        _writeToTarget(_openTag(element));
+        return true;
+
       default:
         if (_isSafeHtmlTag(element.tag)) {
           // Known-safe HTML elements -- pass through as HTML.
@@ -965,6 +1078,21 @@ class MarkdownRenderer implements md.NodeVisitor {
 
       case 'thead' || 'tbody':
         break;
+
+      case 'div':
+        if (_inAlert) {
+          _writelnToBuffer(':::');
+          _ensureBlankLine();
+          _inAlert = false;
+          return;
+        }
+        // Close regular div tags.
+        if (element.children != null) {
+          _writeToTarget('</div>');
+          if (_cellBuffer == null) {
+            _writelnToBuffer();
+          }
+        }
 
       default:
         if (_isSafeHtmlTag(element.tag)) {
@@ -1156,7 +1284,8 @@ class MarkdownRenderer implements md.NodeVisitor {
     if (className.startsWith('language-')) {
       return className.substring('language-'.length);
     }
-    return '';
+    // Default to 'dart' for Dart API documentation code blocks.
+    return 'dart';
   }
 
   /// Renders the text content of a fenced code block's `<code>` element.

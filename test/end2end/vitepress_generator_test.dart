@@ -691,13 +691,12 @@ void main() {
 
       // -- Admonition blocks in library docs ---------------------------------
 
-      test('library documentation preserves admonition blocks', () {
+      test('library documentation converts admonition blocks to VitePress containers', () {
         var content = _readOutput(outDir, 'api/fake/index.md');
-        expect(content, contains('markdown-alert-note'));
-        expect(content, contains('markdown-alert-tip'));
-        expect(content, contains('markdown-alert-important'));
-        expect(content, contains('markdown-alert-warning'));
-        expect(content, contains('markdown-alert-caution'));
+        expect(content, contains(':::info'));
+        expect(content, contains(':::tip'));
+        expect(content, contains(':::warning'));
+        expect(content, contains(':::danger'));
       });
 
       // -- Library overview table structure -----------------------------------

@@ -933,6 +933,33 @@ void _renderMethodMember(
 }
 
 // ---------------------------------------------------------------------------
+// Dynamic outline helper.
+// ---------------------------------------------------------------------------
+
+/// Computes the VitePress `outline` frontmatter value for a container page.
+///
+/// When a container (class, enum, mixin, extension, extension type) has more
+/// than [threshold] public members, h3 member headings are excluded from the
+/// right-hand TOC to prevent overflow (e.g. WebGL with 600+ members).
+///
+/// Returns `[2, 2]` (h2 only) for large containers and `[2, 3]` (h2 + h3)
+/// for smaller ones.
+List<int> _outlineForContainer(Container container, {int threshold = 50}) {
+  final memberCount =
+      (container.hasPublicConstructors
+          ? container.publicConstructorsSorted.length
+          : 0) +
+      container.publicEnumValues.length +
+      container.availableInstanceFieldsSorted.length +
+      container.availableInstanceMethodsSorted.length +
+      container.availableInstanceOperatorsSorted.length +
+      container.publicVariableStaticFieldsSorted.length +
+      container.publicStaticMethodsSorted.length +
+      container.publicConstantFieldsSorted.length;
+  return memberCount > threshold ? [2, 2] : [2, 3];
+}
+
+// ---------------------------------------------------------------------------
 // Public rendering functions.
 // ---------------------------------------------------------------------------
 
@@ -964,9 +991,10 @@ String renderPackagePage(
     }
   }
 
-  // Libraries table
+  // Libraries table (filter out stub libraries with no API elements).
   final libraries = package.libraries
       .where((lib) => lib.isPublic && lib.isDocumented)
+      .where((lib) => _hasApiElements(lib))
       .toList()
     ..sort((a, b) => a.name.compareTo(b.name));
 
@@ -1035,9 +1063,10 @@ String renderWorkspaceOverview(
       builder.writeParagraph(description);
     }
 
-    // Libraries table for this package.
+    // Libraries table for this package (filter out stub libraries).
     final libraries = package.libraries
         .where((lib) => lib.isPublic && lib.isDocumented)
+        .where((lib) => _hasApiElements(lib))
         .toList()
       ..sort((a, b) => a.name.compareTo(b.name));
 
@@ -1184,7 +1213,7 @@ String renderClassPage(
     title: nameWithGenerics,
     description:
         'API documentation for $nameWithGenerics class from ${library.name}',
-    outline: [2, 3],
+    outline: _outlineForContainer(clazz),
     category: category,
     library: library.name,
   );
@@ -1241,7 +1270,7 @@ String renderEnumPage(
     title: nameWithGenerics,
     description:
         'API documentation for $nameWithGenerics enum from ${library.name}',
-    outline: [2, 3],
+    outline: _outlineForContainer(enumeration),
     category: 'Enums',
     library: library.name,
   );
@@ -1317,7 +1346,7 @@ String renderMixinPage(
     title: nameWithGenerics,
     description:
         'API documentation for $nameWithGenerics mixin from ${library.name}',
-    outline: [2, 3],
+    outline: _outlineForContainer(mixin_),
     category: 'Mixins',
     library: library.name,
   );
@@ -1384,7 +1413,7 @@ String renderExtensionPage(
     title: nameWithGenerics,
     description:
         'API documentation for $nameWithGenerics extension from ${library.name}',
-    outline: [2, 3],
+    outline: _outlineForContainer(ext),
     category: 'Extensions',
     library: library.name,
   );
@@ -1434,7 +1463,7 @@ String renderExtensionTypePage(
     title: nameWithGenerics,
     description: 'API documentation for $nameWithGenerics extension type '
         'from ${library.name}',
-    outline: [2, 3],
+    outline: _outlineForContainer(et),
     category: 'Extension Types',
     library: library.name,
   );
@@ -1803,6 +1832,25 @@ String _buildExtensionTypeDeclaration(ExtensionType et) {
   }
 
   return parts.join(' ');
+}
+
+/// Returns `true` if the library has any public API elements (classes,
+/// functions, enums, etc.).
+///
+/// Stub libraries (e.g. `dart.core` forwarding to `dart:core`) pass the
+/// `isPublic && isDocumented` filters but contain zero actual elements.
+/// This helper detects them so they can be excluded from index pages.
+bool _hasApiElements(Library library) {
+  return library.publicClassesSorted.isNotEmpty ||
+      library.publicExceptionsSorted.isNotEmpty ||
+      library.publicEnumsSorted.isNotEmpty ||
+      library.publicMixinsSorted.isNotEmpty ||
+      library.publicExtensionsSorted.isNotEmpty ||
+      library.publicExtensionTypesSorted.isNotEmpty ||
+      library.publicFunctionsSorted.isNotEmpty ||
+      library.publicPropertiesSorted.isNotEmpty ||
+      library.publicConstantsSorted.isNotEmpty ||
+      library.publicTypedefsSorted.isNotEmpty;
 }
 
 /// Strips or downgrades a leading `# title` from documentation text.

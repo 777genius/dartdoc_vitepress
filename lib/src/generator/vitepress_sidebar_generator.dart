@@ -97,6 +97,7 @@ class VitePressSidebarGenerator {
           final otherLibs = sameNameLib != null
               ? libraries.where((l) => l.name != package.name).toList()
               : libraries;
+          final displayNames = _disambiguatedNames(otherLibs);
 
           buf.writeln('    {');
           buf.writeln("      text: '${_escapeTs(package.name)}',");
@@ -107,7 +108,11 @@ class VitePressSidebarGenerator {
           buf.writeln('      collapsed: false,');
           buf.writeln('      items: [');
           for (final library in otherLibs) {
-            _writeLibraryGroup(buf, library, indent: 8);
+            _writeLibraryGroup(
+              buf, library,
+              indent: 8,
+              displayName: displayNames[library],
+            );
           }
           buf.writeln('      ],');
           buf.writeln('    },');
@@ -119,8 +124,13 @@ class VitePressSidebarGenerator {
           indent: 4, writeLibraryGroups: true,
         );
       } else {
+        final displayNames = _disambiguatedNames(libraries);
         for (final library in libraries) {
-          _writeLibraryGroup(buf, library, indent: 4);
+          _writeLibraryGroup(
+            buf, library,
+            indent: 4,
+            displayName: displayNames[library],
+          );
         }
       }
     }
@@ -142,6 +152,8 @@ class VitePressSidebarGenerator {
 
     for (final package in packages) {
       for (final library in package.publicLibrariesSorted) {
+        // Skip stub libraries with no API elements.
+        if (_countLibraryElements(library) == 0) continue;
         final dirName = paths.dirNameFor(library);
         final base = '/api/$dirName/';
         buf.writeln("  '${_escapeTs(base)}': [");
@@ -185,6 +197,7 @@ class VitePressSidebarGenerator {
           final otherLibs = sameNameLib != null
               ? libraries.where((l) => l.name != package.name).toList()
               : libraries;
+          final displayNames = _disambiguatedNames(otherLibs);
 
           buf.writeln('    {');
           buf.writeln("      text: '${_escapeTs(package.name)}',");
@@ -195,8 +208,9 @@ class VitePressSidebarGenerator {
           buf.writeln('      items: [');
           for (final library in otherLibs) {
             final dirName = paths.dirNameFor(library);
+            final name = displayNames[library] ?? library.name;
             buf.writeln('        {');
-            buf.writeln("          text: '${_escapeTs(library.name)}',");
+            buf.writeln("          text: '${_escapeTs(name)}',");
             buf.writeln("          link: '/api/$dirName/',");
             buf.writeln('        },');
           }
@@ -210,10 +224,12 @@ class VitePressSidebarGenerator {
           indent: 4, writeLibraryGroups: false,
         );
       } else {
+        final displayNames = _disambiguatedNames(libraries);
         for (final library in libraries) {
           final dirName = paths.dirNameFor(library);
+          final name = displayNames[library] ?? library.name;
           buf.writeln('    {');
-          buf.writeln("      text: '${_escapeTs(library.name)}',");
+          buf.writeln("      text: '${_escapeTs(name)}',");
           buf.writeln("      link: '/api/$dirName/',");
           buf.writeln('    },');
         }
@@ -242,6 +258,9 @@ class VitePressSidebarGenerator {
     required bool writeLibraryGroups,
   }) {
     final pad = ' ' * indent;
+
+    // Build disambiguation map across all libraries to detect duplicate names.
+    final displayNames = _disambiguatedNames(allLibraries);
 
     // Collect all categorized libraries to find uncategorized ones later.
     final categorizedLibs = <Library>{};
@@ -272,11 +291,16 @@ class VitePressSidebarGenerator {
 
       for (final lib in libs) {
         if (writeLibraryGroups) {
-          _writeLibraryGroup(buf, lib, indent: indent + 4);
+          _writeLibraryGroup(
+            buf, lib,
+            indent: indent + 4,
+            displayName: displayNames[lib],
+          );
         } else {
           final dirName = paths.dirNameFor(lib);
+          final name = displayNames[lib] ?? lib.name;
           buf.writeln('$pad    {');
-          buf.writeln("$pad      text: '${_escapeTs(lib.name)}',");
+          buf.writeln("$pad      text: '${_escapeTs(name)}',");
           buf.writeln("$pad      link: '/api/$dirName/',");
           buf.writeln('$pad    },');
         }
@@ -286,10 +310,13 @@ class VitePressSidebarGenerator {
       buf.writeln('$pad},');
     }
 
-    // Libraries not in any category.
+    // Libraries not in any category (filter out stub libraries, sort
+    // alphabetically).
     final uncategorized = allLibraries
         .where((l) => !categorizedLibs.contains(l))
-        .toList();
+        .where((l) => _countLibraryElements(l) > 0)
+        .toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
 
     if (uncategorized.isNotEmpty) {
       buf.writeln('$pad{');
@@ -298,11 +325,16 @@ class VitePressSidebarGenerator {
       buf.writeln('$pad  items: [');
       for (final lib in uncategorized) {
         if (writeLibraryGroups) {
-          _writeLibraryGroup(buf, lib, indent: indent + 4);
+          _writeLibraryGroup(
+            buf, lib,
+            indent: indent + 4,
+            displayName: displayNames[lib],
+          );
         } else {
           final dirName = paths.dirNameFor(lib);
+          final name = displayNames[lib] ?? lib.name;
           buf.writeln('$pad    {');
-          buf.writeln("$pad      text: '${_escapeTs(lib.name)}',");
+          buf.writeln("$pad      text: '${_escapeTs(name)}',");
           buf.writeln("$pad      link: '/api/$dirName/',");
           buf.writeln('$pad    },');
         }
@@ -321,6 +353,7 @@ class VitePressSidebarGenerator {
     Library library, {
     required int indent,
     bool forceExpand = false,
+    String? displayName,
   }) {
     final pad = ' ' * indent;
     final totalElements = _countLibraryElements(library);
@@ -329,7 +362,7 @@ class VitePressSidebarGenerator {
     final base = '/api/$dirName/';
 
     buf.writeln('$pad{');
-    buf.writeln("$pad  text: '${_escapeTs(library.name)}',");
+    buf.writeln("$pad  text: '${_escapeTs(displayName ?? library.name)}',");
     buf.writeln("$pad  base: '${_escapeTs(base)}',");
     buf.writeln('$pad  collapsed: $libraryCollapsed,');
     buf.writeln('$pad  items: [');
@@ -604,6 +637,31 @@ class VitePressSidebarGenerator {
       });
     }
     return cats;
+  }
+
+  /// Returns a display-name map for a list of libraries, disambiguating
+  /// duplicate names by appending the directory name in parentheses.
+  ///
+  /// For example, if two libraries are both named `embedded_names` but live
+  /// in different directories (`js_runtime` and `svg`), the display names
+  /// become `embedded_names (js_runtime)` and `embedded_names (svg)`.
+  Map<Library, String> _disambiguatedNames(List<Library> libraries) {
+    // Count how many libraries share each display name.
+    final nameCounts = <String, int>{};
+    for (final lib in libraries) {
+      nameCounts[lib.name] = (nameCounts[lib.name] ?? 0) + 1;
+    }
+
+    final result = <Library, String>{};
+    for (final lib in libraries) {
+      if (nameCounts[lib.name]! > 1) {
+        final dirName = paths.dirNameFor(lib);
+        result[lib] = '${lib.name} ($dirName)';
+      } else {
+        result[lib] = lib.name;
+      }
+    }
+    return result;
   }
 
   static String _escapeTs(String value) => escapeForTs(value);

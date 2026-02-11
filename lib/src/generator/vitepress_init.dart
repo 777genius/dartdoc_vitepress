@@ -99,6 +99,14 @@ class VitePressInitGenerator {
       placeholders: placeholders,
     );
 
+    // .gitignore for node_modules, dist and cache
+    _writeTemplateIfAbsent(
+      templateDir: templateDir,
+      templateFile: '.gitignore',
+      outputFile: '.gitignore',
+      placeholders: placeholders,
+    );
+
     // Theme customization (glassmorphism nav)
     _writeTemplateIfAbsent(
       templateDir: templateDir,
