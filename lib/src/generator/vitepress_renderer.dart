@@ -84,6 +84,7 @@ class _MarkdownPageBuilder {
     required String description,
     required Object outline, // bool or List<int>
     String? category,
+    String? library,
   }) {
     _buffer.writeln('---');
     // Quote the title to handle special characters like `<` and `:`.
@@ -91,6 +92,9 @@ class _MarkdownPageBuilder {
     _buffer.writeln('description: "${yamlEscape(description)}"');
     if (category != null) {
       _buffer.writeln('category: "${yamlEscape(category)}"');
+    }
+    if (library != null) {
+      _buffer.writeln('library: "${yamlEscape(library)}"');
     }
     if (outline is bool) {
       _buffer.writeln('outline: $outline');
@@ -1125,6 +1129,7 @@ String renderClassPage(
         'API documentation for $nameWithGenerics class from ${library.name}',
     outline: [2, 3],
     category: category,
+    library: library.name,
   );
 
   builder.writeBreadcrumbComponent();
@@ -1181,6 +1186,7 @@ String renderEnumPage(
         'API documentation for $nameWithGenerics enum from ${library.name}',
     outline: [2, 3],
     category: 'Enums',
+    library: library.name,
   );
 
   builder.writeBreadcrumbComponent();
@@ -1256,6 +1262,7 @@ String renderMixinPage(
         'API documentation for $nameWithGenerics mixin from ${library.name}',
     outline: [2, 3],
     category: 'Mixins',
+    library: library.name,
   );
 
   builder.writeBreadcrumbComponent();
@@ -1322,6 +1329,7 @@ String renderExtensionPage(
         'API documentation for $nameWithGenerics extension from ${library.name}',
     outline: [2, 3],
     category: 'Extensions',
+    library: library.name,
   );
 
   builder.writeBreadcrumbComponent();
@@ -1371,6 +1379,7 @@ String renderExtensionTypePage(
         'from ${library.name}',
     outline: [2, 3],
     category: 'Extension Types',
+    library: library.name,
   );
 
   builder.writeBreadcrumbComponent();
@@ -1425,6 +1434,7 @@ String renderFunctionPage(
         'from ${library.name}',
     outline: false,
     category: 'Functions',
+    library: library.name,
   );
 
   builder.writeBreadcrumbComponent();
@@ -1471,6 +1481,7 @@ String renderPropertyPage(
         'from ${library.name}',
     outline: false,
     category: sidebarKind,
+    library: library.name,
   );
 
   builder.writeBreadcrumbComponent();
@@ -1526,6 +1537,7 @@ String renderTypedefPage(
         'from ${library.name}',
     outline: false,
     category: 'Typedefs',
+    library: library.name,
   );
 
   builder.writeBreadcrumbComponent();

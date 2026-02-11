@@ -1,0 +1,97 @@
+/* Center mermaid diagrams */
+.mermaid {
+  display: flex;
+  justify-content: center;
+}
+
+.mermaid-zoom-hint {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: var(--vp-c-text-3, #8e8e8e);
+  background: var(--vp-c-bg-soft, #252525);
+  border: 1px solid var(--vp-c-border, #3c3c3c);
+  border-radius: 6px;
+  opacity: 0;
+  transition:
+    opacity 0.3s ease,
+    color 0.3s ease,
+    border-color 0.3s ease;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.mermaid:hover .mermaid-zoom-hint {
+  opacity: 1;
+}
+
+.mermaid:hover .mermaid-zoom-hint:hover {
+  color: var(--vp-c-brand-1, #3451b2);
+  border-color: var(--vp-c-brand-1, #3451b2);
+}
+
+/* Fullscreen backdrop */
+.mermaid-zoom-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0);
+  backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
+  pointer-events: none;
+  transition:
+    background 0.3s ease,
+    backdrop-filter 0.3s ease,
+    -webkit-backdrop-filter 0.3s ease;
+  cursor: zoom-out;
+  outline: none;
+}
+
+.mermaid-zoom-backdrop.active {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  pointer-events: all;
+}
+
+.dark .mermaid-zoom-backdrop.active {
+  background: rgba(0, 0, 0, 0.75);
+}
+
+/* Diagram in zoomed state */
+.mermaid.mermaid-zoomed {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--vp-c-bg, #ffffff);
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+  width: 92vw;
+  height: 88vh;
+  overflow: auto;
+  cursor: zoom-out;
+  transition: transform 0.3s ease;
+}
+
+.mermaid.mermaid-zoomed svg {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mermaid-zoom-hint,
+  .mermaid-zoom-backdrop,
+  .mermaid.mermaid-zoomed {
+    transition: none !important;
+  }
+}

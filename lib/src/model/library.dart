@@ -147,19 +147,32 @@ class Library extends ModelElement with TopLevelContainer {
   late final String dirName = () {
     String nameFromPath;
     if (isAnonymous) {
-      assert(!_restoredUri.startsWith('file:'),
-          '"$_restoredUri" must not start with "file:"');
-      // Strip the package prefix if the library is part of the default package
-      // or if it is being documented remotely.
-      var defaultPackage = package.documentedWhere == DocumentLocation.remote
-          ? package.packageMeta
-          : package.packageGraph.packageMeta;
-      var packageNameToHide = defaultPackage.toString().toLowerCase();
-      var schemaToHide = 'package:$packageNameToHide/';
+      if (_restoredUri.startsWith('file:')) {
+        // file: URIs occur in multi-package workspace mode on CI where the
+        // analyzer resolves anonymous library sources to absolute file paths.
+        // Compute a meaningful relative path from the package root.
+        var fullName = element.firstFragment.source.fullName;
+        var relativePath =
+            pathContext.relative(fullName, from: package.packagePath);
+        if (relativePath.startsWith('lib${pathContext.separator}')) {
+          const libDirectoryLength = 'lib/'.length;
+          nameFromPath = relativePath.substring(libDirectoryLength);
+        } else {
+          nameFromPath = relativePath;
+        }
+      } else {
+        // Strip the package prefix if the library is part of the default
+        // package or if it is being documented remotely.
+        var defaultPackage = package.documentedWhere == DocumentLocation.remote
+            ? package.packageMeta
+            : package.packageGraph.packageMeta;
+        var packageNameToHide = defaultPackage.toString().toLowerCase();
+        var schemaToHide = 'package:$packageNameToHide/';
 
-      nameFromPath = _restoredUri;
-      if (nameFromPath.startsWith(schemaToHide)) {
-        nameFromPath = nameFromPath.substring(schemaToHide.length);
+        nameFromPath = _restoredUri;
+        if (nameFromPath.startsWith(schemaToHide)) {
+          nameFromPath = nameFromPath.substring(schemaToHide.length);
+        }
       }
       // Remove the trailing `.dart`.
       if (nameFromPath.endsWith('.dart')) {
