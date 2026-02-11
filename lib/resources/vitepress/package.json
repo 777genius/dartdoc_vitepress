@@ -1,5 +1,5 @@
 {
-  "name": "{{packageName}}-docs",
+  "name": "{{npmPackageName}}-docs",
   "private": true,
   "type": "module",
   "scripts": {

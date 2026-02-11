@@ -8,8 +8,12 @@ import 'package:dartdoc_vitepress/src/generator/resource_loader.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 
-/// Matches characters not allowed in a safe package name.
-final _unsafePackageNameChars = RegExp(r'[^a-z0-9_-]');
+/// Matches characters not allowed in a display-safe package name.
+///
+/// Allows uppercase letters so that names like "Dart" are preserved for
+/// display in titles and hero sections. For npm-safe names (which must be
+/// lowercase), use [String.toLowerCase] on the result.
+final _unsafePackageNameChars = RegExp(r'[^a-zA-Z0-9_-]');
 
 /// Matches `/tree/<branch>/...` suffix common in pub.dev repository URLs.
 final _treePathSuffix = RegExp(r'/tree/[^/]+(/.*)?$');
@@ -43,9 +47,13 @@ class VitePressInitGenerator {
     required String packageName,
     String repositoryUrl = '',
   }) async {
+    // Display name: preserves original casing (e.g. "Dart" stays "Dart").
     final safeName = packageName.replaceAll(_unsafePackageNameChars, '-');
+    // npm package name: must be lowercase per npm naming rules.
+    final npmSafeName = safeName.toLowerCase();
     final placeholders = {
       '{{packageName}}': safeName,
+      '{{npmPackageName}}': npmSafeName,
       '{{socialLinks}}': buildSocialLinks(repositoryUrl),
     };
 

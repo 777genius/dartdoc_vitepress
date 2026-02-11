@@ -68,23 +68,56 @@ class VitePressSidebarGenerator {
     for (final package in packages) {
       final libraries = package.publicLibrariesSorted;
       if (libraries.isEmpty) continue;
+
+      final categories = _sortedCategoriesWithLibraries(package);
+
       if (isMultiPackage) {
         // When the package has a single library with the same name,
         // skip the package-level wrapper to avoid redundant nesting.
         if (libraries.length == 1 && libraries.first.name == package.name) {
           _writeLibraryGroup(buf, libraries.first, indent: 4);
-        } else {
-          // Wrap libraries in a package-level group.
+        } else if (categories.isNotEmpty) {
+          // Package has categories — group libraries by category inside
+          // a package-level wrapper.
           buf.writeln('    {');
           buf.writeln("      text: '${_escapeTs(package.name)}',");
           buf.writeln('      collapsed: false,');
           buf.writeln('      items: [');
-          for (final library in libraries) {
+          _writeCategoryGroups(
+            buf, package, categories, libraries,
+            indent: 8, writeLibraryGroups: true,
+          );
+          buf.writeln('      ],');
+          buf.writeln('    },');
+        } else {
+          // No categories — flat list with sameNameLib dedup.
+          final sameNameLib = libraries
+              .where((l) => l.name == package.name)
+              .firstOrNull;
+          final otherLibs = sameNameLib != null
+              ? libraries.where((l) => l.name != package.name).toList()
+              : libraries;
+
+          buf.writeln('    {');
+          buf.writeln("      text: '${_escapeTs(package.name)}',");
+          if (sameNameLib != null) {
+            final dirName = paths.dirNameFor(sameNameLib);
+            buf.writeln("      link: '/api/$dirName/',");
+          }
+          buf.writeln('      collapsed: false,');
+          buf.writeln('      items: [');
+          for (final library in otherLibs) {
             _writeLibraryGroup(buf, library, indent: 8);
           }
           buf.writeln('      ],');
           buf.writeln('    },');
         }
+      } else if (categories.isNotEmpty) {
+        // Single package with categories — categories at top level.
+        _writeCategoryGroups(
+          buf, package, categories, libraries,
+          indent: 4, writeLibraryGroups: true,
+        );
       } else {
         for (final library in libraries) {
           _writeLibraryGroup(buf, library, indent: 4);
@@ -122,6 +155,9 @@ class VitePressSidebarGenerator {
     for (final package in packages) {
       final libraries = package.publicLibrariesSorted;
       if (libraries.isEmpty) continue;
+
+      final categories = _sortedCategoriesWithLibraries(package);
+
       if (isMultiPackage) {
         if (libraries.length == 1 && libraries.first.name == package.name) {
           // Single library matching package name — no wrapper needed.
@@ -130,9 +166,19 @@ class VitePressSidebarGenerator {
           buf.writeln("      text: '${_escapeTs(libraries.first.name)}',");
           buf.writeln("      link: '/api/$dirName/',");
           buf.writeln('    },');
+        } else if (categories.isNotEmpty) {
+          // Package with categories — group by category inside package.
+          buf.writeln('    {');
+          buf.writeln("      text: '${_escapeTs(package.name)}',");
+          buf.writeln('      items: [');
+          _writeCategoryGroups(
+            buf, package, categories, libraries,
+            indent: 8, writeLibraryGroups: false,
+          );
+          buf.writeln('      ],');
+          buf.writeln('    },');
         } else {
-          // If one library has the same name as the package, make the
-          // group header link to it and skip the duplicate entry.
+          // No categories — flat list with sameNameLib dedup.
           final sameNameLib = libraries
               .where((l) => l.name == package.name)
               .firstOrNull;
@@ -157,6 +203,12 @@ class VitePressSidebarGenerator {
           buf.writeln('      ],');
           buf.writeln('    },');
         }
+      } else if (categories.isNotEmpty) {
+        // Single package with categories — categories at top level.
+        _writeCategoryGroups(
+          buf, package, categories, libraries,
+          indent: 4, writeLibraryGroups: false,
+        );
       } else {
         for (final library in libraries) {
           final dirName = paths.dirNameFor(library);
@@ -170,6 +222,94 @@ class VitePressSidebarGenerator {
     buf.writeln('  ],');
 
     buf.writeln('}');
+  }
+
+  /// Writes library groups organized by category.
+  ///
+  /// Each category becomes a collapsible group containing its libraries.
+  /// When [writeLibraryGroups] is true, libraries are rendered as full groups
+  /// (with Overview, Classes, etc.); when false, as simple links.
+  ///
+  /// Libraries not in any category are placed in an "Other" group at the end.
+  /// External items (like `package:web` in the SDK) are included in their
+  /// respective category groups.
+  void _writeCategoryGroups(
+    StringBuffer buf,
+    Package package,
+    List<Category> categories,
+    List<Library> allLibraries, {
+    required int indent,
+    required bool writeLibraryGroups,
+  }) {
+    final pad = ' ' * indent;
+
+    // Collect all categorized libraries to find uncategorized ones later.
+    final categorizedLibs = <Library>{};
+
+    for (final category in categories) {
+      // Only include libraries with actual API elements (classes, functions,
+      // etc.) — skip stub/overview-only libraries.
+      final libs = category.publicLibrariesSorted
+          .where((l) => _countLibraryElements(l) > 0)
+          .toList();
+      categorizedLibs.addAll(category.publicLibrariesSorted);
+
+      // Skip empty categories with no external items.
+      if (libs.isEmpty && category.externalItems.isEmpty) continue;
+
+      buf.writeln('$pad{');
+      buf.writeln("$pad  text: '${_escapeTs(category.name)}',");
+      buf.writeln('$pad  collapsed: false,');
+      buf.writeln('$pad  items: [');
+
+      // External items first (e.g. package:web link).
+      for (final ext in category.externalItems) {
+        buf.writeln('$pad    {');
+        buf.writeln("$pad      text: '${_escapeTs(ext.name)}',");
+        buf.writeln("$pad      link: '${_escapeTs(ext.url)}',");
+        buf.writeln('$pad    },');
+      }
+
+      for (final lib in libs) {
+        if (writeLibraryGroups) {
+          _writeLibraryGroup(buf, lib, indent: indent + 4);
+        } else {
+          final dirName = paths.dirNameFor(lib);
+          buf.writeln('$pad    {');
+          buf.writeln("$pad      text: '${_escapeTs(lib.name)}',");
+          buf.writeln("$pad      link: '/api/$dirName/',");
+          buf.writeln('$pad    },');
+        }
+      }
+
+      buf.writeln('$pad  ],');
+      buf.writeln('$pad},');
+    }
+
+    // Libraries not in any category.
+    final uncategorized = allLibraries
+        .where((l) => !categorizedLibs.contains(l))
+        .toList();
+
+    if (uncategorized.isNotEmpty) {
+      buf.writeln('$pad{');
+      buf.writeln("$pad  text: 'Other',");
+      buf.writeln('$pad  collapsed: false,');
+      buf.writeln('$pad  items: [');
+      for (final lib in uncategorized) {
+        if (writeLibraryGroups) {
+          _writeLibraryGroup(buf, lib, indent: indent + 4);
+        } else {
+          final dirName = paths.dirNameFor(lib);
+          buf.writeln('$pad    {');
+          buf.writeln("$pad      text: '${_escapeTs(lib.name)}',");
+          buf.writeln("$pad      link: '/api/$dirName/',");
+          buf.writeln('$pad    },');
+        }
+      }
+      buf.writeln('$pad  ],');
+      buf.writeln('$pad},');
+    }
   }
 
   /// Writes a single library sidebar group with `base` path deduplication.
@@ -438,6 +578,32 @@ class VitePressSidebarGenerator {
         count(library.publicPropertiesSorted) +
         count(library.publicConstantsSorted) +
         count(library.publicTypedefsSorted);
+  }
+
+  /// Returns categories that have public libraries, sorted by the
+  /// `categoryOrder` config option (same logic as `documentedCategoriesSorted`
+  /// but without requiring a documentation markdown file).
+  static List<Category> _sortedCategoriesWithLibraries(Package package) {
+    final cats = package.categoriesWithPublicLibraries.toList();
+    if (cats.isEmpty) return cats;
+
+    final order = package.config.categoryOrder;
+    if (order.isNotEmpty) {
+      cats.sort((a, b) {
+        final aIndex = order.indexOf(a.name);
+        final bIndex = order.indexOf(b.name);
+        if (aIndex >= 0 && bIndex >= 0) {
+          return aIndex.compareTo(bIndex);
+        } else if (aIndex < 0 && bIndex >= 0) {
+          return 1;
+        } else if (bIndex < 0 && aIndex >= 0) {
+          return -1;
+        } else {
+          return a.name.compareTo(b.name);
+        }
+      });
+    }
+    return cats;
   }
 
   static String _escapeTs(String value) => escapeForTs(value);

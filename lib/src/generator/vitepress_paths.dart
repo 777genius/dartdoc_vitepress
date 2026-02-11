@@ -4,6 +4,7 @@
 
 import 'package:dartdoc_vitepress/src/comment_references/parser.dart' show operatorNames;
 import 'package:dartdoc_vitepress/src/model/model.dart';
+import 'package:dartdoc_vitepress/src/model_utils.dart';
 import 'package:meta/meta.dart';
 
 // ---------------------------------------------------------------------------
@@ -38,12 +39,23 @@ class VitePressPathResolver {
   /// collisions.
   final Map<Library, String> _libraryDirNames = {};
 
+  /// Maps each library to the set of lowercased sanitized file names of its
+  /// container-type elements (classes, enums, mixins, extensions, extension
+  /// types).
+  ///
+  /// Used by [_safeFileName] to detect case-insensitive collisions between
+  /// container pages and top-level element pages (e.g., class `Document` vs
+  /// top-level property `document` would both map to `document.md` on
+  /// case-insensitive file systems like macOS HFS+ and Windows NTFS).
+  final Map<Library, Set<String>> _containerNames = {};
+
   /// Initializes the resolver with unique directory names for all libraries.
   ///
   /// Must be called before any path resolution when documenting multiple
   /// packages. Detects dirName collisions and prefixes with package name.
   void initFromPackageGraph(PackageGraph packageGraph) {
     _libraryDirNames.clear();
+    _containerNames.clear();
 
     // Collect all (library, dirName) pairs.
     final allLibraries = <Library>[];
@@ -64,6 +76,30 @@ class VitePressPathResolver {
         _libraryDirNames[library] = '${library.package.name}_$baseName';
       } else {
         _libraryDirNames[library] = baseName;
+      }
+    }
+
+    // Build the set of lowercased container names per library for
+    // case-insensitive collision detection in _safeFileName().
+    for (final package in packageGraph.localPackages) {
+      for (final lib in package.libraries.whereDocumented) {
+        final names = <String>{};
+        for (final c in lib.classesAndExceptions.whereDocumentedIn(lib)) {
+          names.add(sanitizeFileName(c.name).toLowerCase());
+        }
+        for (final e in lib.enums.whereDocumentedIn(lib)) {
+          names.add(sanitizeFileName(e.name).toLowerCase());
+        }
+        for (final m in lib.mixins.whereDocumentedIn(lib)) {
+          names.add(sanitizeFileName(m.name).toLowerCase());
+        }
+        for (final x in lib.extensions.whereDocumentedIn(lib)) {
+          names.add(sanitizeFileName(x.name).toLowerCase());
+        }
+        for (final xt in lib.extensionTypes.whereDocumentedIn(lib)) {
+          names.add(sanitizeFileName(xt.name).toLowerCase());
+        }
+        _containerNames[lib] = names;
       }
     }
   }
@@ -211,9 +247,27 @@ class VitePressPathResolver {
       return '#$name';
     }
 
+    // For enum values, add value- prefix to match renderer's _memberAnchor().
+    // Must be checked BEFORE Field because EnumField extends Field.
+    if (element is EnumField) {
+      final name = stripGenerics(element.name);
+      return '#value-${name.toLowerCase()}';
+    }
+
     // For fields, add prop- prefix to match renderer's _memberAnchor().
     if (element is Field) {
       final name = stripGenerics(element.name);
+      return '#prop-${name.toLowerCase()}';
+    }
+
+    // For accessors (getters/setters resolved from bracket references like
+    // [length]), map to the enclosing combo's field anchor with prop- prefix.
+    // Strip trailing '=' from setter names (e.g., 'findProxy=' → 'findProxy').
+    if (element is Accessor) {
+      var name = stripGenerics(element.name);
+      if (name.endsWith('=')) {
+        name = name.substring(0, name.length - 1);
+      }
       return '#prop-${name.toLowerCase()}';
     }
 
@@ -288,18 +342,54 @@ class VitePressPathResolver {
   ///    (Windows, macOS, Linux).
   /// 2. Avoids collision with `index.md` (used for library overview pages)
   ///    by appending a kind-based suffix.
+  /// 3. Avoids case-insensitive collision between top-level elements and
+  ///    container-type elements in the same library. On macOS (HFS+) and
+  ///    Windows (NTFS), `Document.md` and `document.md` resolve to the same
+  ///    physical file. When a top-level property/function/typedef name
+  ///    differs from a container name only by case, append a kind suffix
+  ///    (e.g., `document-property`).
   ///
   /// Examples:
   /// - Class named "index" -> `index-class`
   /// - Class named "MyClass" -> `MyClass` (no suffix needed)
   /// - Class named `Foo<Bar>` -> `Foo` (generics stripped)
+  /// - Top-level property "document" with class "Document" -> `document-property`
   String _safeFileName(String name, Documentable element) {
     var safe = sanitizeFileName(name);
     if (safe.toLowerCase() == 'index') {
       // Collision avoidance: append element kind suffix.
       safe = '$safe-${_kindSuffix(element)}';
     }
+
+    // Case-insensitive collision avoidance for top-level elements whose
+    // sanitized name matches a container name in the same library.
+    // Only top-level non-container elements need disambiguation; container
+    // types keep their original casing and the top-level element yields.
+    if (element is TopLevelVariable ||
+        element is ModelFunction ||
+        element is Typedef) {
+      final lib = _resolveLibrary(element);
+      if (lib != null) {
+        final containerSet = _containerNames[lib];
+        if (containerSet != null &&
+            containerSet.contains(safe.toLowerCase())) {
+          safe = '$safe-${_kindSuffix(element)}';
+        }
+      }
+    }
+
     return safe;
+  }
+
+  /// Resolves the canonical (or fallback) library for an element.
+  ///
+  /// Returns `null` if the element has no associated library.
+  Library? _resolveLibrary(Documentable element) {
+    if (element is Library) return element;
+    if (element is ModelElement) {
+      return element.canonicalLibrary ?? element.library;
+    }
+    return null;
   }
 
   /// Sanitizes a string for use as a file name.

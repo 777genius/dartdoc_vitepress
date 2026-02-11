@@ -177,6 +177,14 @@ class VitePressDocProcessor {
   // Pre-compiled pattern for extractOneLineDoc.
   static final _blankLine = RegExp(r'\n\s*\n');
 
+  /// Matches hardcoded relative `.html` links in rendered markdown output.
+  ///
+  /// These come from SDK source doc comments that contain explicit markdown
+  /// links like `[text](dart-developer/foo.html)`. The pattern matches
+  /// `[text](relative-path.html)` but NOT `[text](https://...)`.
+  static final _hardcodedHtmlLink =
+      RegExp(r'\[([^\]]+)\]\((?!https?://)([^)]+\.html)\)');
+
   /// Processes the full documentation for [element], resolving cross-references
   /// and `{@inject-html}` placeholders.
   ///
@@ -225,33 +233,71 @@ class VitePressDocProcessor {
     return _preprocess(text);
   }
 
+  /// Non-HTML marker for `{@inject-html}` placeholders.
+  ///
+  /// The original `<dartdoc-html>HEXDIGEST</dartdoc-html>` markers are replaced
+  /// with `DARTDOC_INJECT{HEXDIGEST}` before the markdown parser, so the parser
+  /// treats them as plain text (not HTML). After rendering, the markers are
+  /// resolved to actual HTML content.
+  static final _injectMarker = RegExp(r'DARTDOC_INJECT\{([a-f0-9]+)\}');
+
+  /// Pattern matching `{@tool ...}...{@end-tool}` directive blocks.
+  ///
+  /// These are Flutter-specific directives that produce interactive samples.
+  /// When the tool infrastructure is not available (e.g. non-Flutter packages),
+  /// these directives pass through unresolved. We strip them to avoid raw
+  /// directive text in the output.
+  static final _toolDirective =
+      RegExp(r'[ ]*\{@tool\s+[^\}]*\}\n?[\s\S]*?\n?\{@end-tool\}[ ]*\n?');
+
   /// Pre-processes raw documentation text before markdown parsing.
   ///
-  /// Performs three transformations in order:
-  /// 1. Resolves `<dartdoc-html>` placeholders to actual HTML fragments
+  /// Performs four transformations in order:
+  /// 1. Replaces `<dartdoc-html>` placeholders with non-HTML markers
   /// 2. Strips `htmlBasePlaceholder` strings (irrelevant for VitePress)
-  /// 3. Replaces `<p>` joiners with double newlines (safety net)
+  /// 3. Replaces `<p>` joiners with double newlines (preserving inline code)
+  /// 4. Strips unresolved `{@tool}` directives (Flutter-specific)
+
   String _preprocess(String text) {
-    // Step 1: Resolve {@inject-html} placeholders BEFORE markdown parsing.
+    // Step 1: Replace {@inject-html} placeholders with non-HTML markers.
     // The `documentation` getter contains `<dartdoc-html>HEXDIGEST</dartdoc-html>`
-    // placeholders. We resolve them to actual HTML content so the markdown
-    // parser sees them as raw HTML and passes them through.
+    // placeholders. We convert them to `DARTDOC_INJECT{HEXDIGEST}` so the
+    // markdown parser doesn't treat them as HTML. After rendering, we resolve
+    // these markers back to actual HTML content.
     text = text.replaceAllMapped(
       _htmlInjectPattern,
-      (m) => packageGraph.getHtmlFragment(m[1]!) ?? '',
+      (m) => 'DARTDOC_INJECT{${m[1]!}}',
     );
 
     // Step 2: Strip htmlBasePlaceholder -- it's an internal dartdoc artifact
     // that has no meaning in VitePress output.
     text = text.replaceAll(_htmlBasePlaceholder, '');
 
-    // Step 3: Replace `<p>` joiners with double newlines.
-    // The `documentation` getter joins multiple documentation sources with `<p>`.
-    // In practice this never fires (confirmed dead code), but we handle it
-    // as a safety net.
+    // Step 3: Replace `<p>` joiners with paragraph breaks.
+    // The `documentation` getter joins multiple documentation sources with
+    // `<p>` (model_element.dart:540). This is a structural joiner between
+    // raw doc fragments, not an HTML tag in the document flow — it can appear
+    // adjacent to any character including backticks when a doc fragment ends
+    // with inline code (e.g. `` `Widget`<p>Next paragraph ``).
     text = text.replaceAll('<p>', '\n\n');
 
+    // Step 4: Strip unresolved {@tool} directives (Flutter-specific).
+    // These produce interactive samples in Flutter docs but pass through
+    // unresolved when the tool infrastructure is unavailable.
+    text = text.replaceAll(_toolDirective, '');
+
     return text;
+  }
+
+  /// Resolves `DARTDOC_INJECT{HEXDIGEST}` markers back to actual HTML content.
+  ///
+  /// Called after markdown rendering, so the injected HTML is NOT processed
+  /// by the markdown parser (it's raw HTML passed through to VitePress).
+  String _resolveInjectMarkers(String rendered) {
+    return rendered.replaceAllMapped(
+      _injectMarker,
+      (m) => packageGraph.getHtmlFragment(m[1]!) ?? '',
+    );
   }
 
   /// Resolves bracket references in [text] by parsing it through the markdown
@@ -268,15 +314,42 @@ class VitePressDocProcessor {
     final document = md.Document(
       blockSyntaxes: _blockSyntaxes,
       inlineSyntaxes: _inlineSyntaxes,
-      // `encodeHtml: false` is critical so that HTML from {@youtube},
-      // {@inject-html}, etc. is NOT escaped to `&lt;`/`&gt;`.
+      // `encodeHtml: false` is kept for now so that special characters in
+      // doc comments (e.g. `&gt;` in code examples) are not double-encoded.
+      // HTML tags are escaped in MarkdownRenderer.visitText instead.
       encodeHtml: false,
       linkResolver: (String name, [String? title]) =>
           _resolveLinkReference(name, element),
     );
 
     final nodes = document.parse(text);
-    final rendered = MarkdownRenderer().render(nodes);
+    var rendered = MarkdownRenderer().render(nodes);
+
+    // Resolve inject-html markers AFTER rendering, so the injected HTML
+    // bypasses the markdown parser and MarkdownRenderer's tag escaping.
+    rendered = _resolveInjectMarkers(rendered);
+
+    // Rewrite hardcoded relative .html links in doc comments (TYPE 2).
+    // SDK source code sometimes contains explicit markdown links like
+    // `[text](dart-developer/extensionStreamHasListener.html)` that bypass
+    // the bracket reference resolution. Convert these to VitePress paths.
+    rendered = rendered.replaceAllMapped(
+      _hardcodedHtmlLink,
+      (m) {
+        final linkText = m[1]!;
+        var path = m[2]!;
+        // Remove .html extension.
+        path = path.replaceFirst(RegExp(r'\.html$'), '');
+        // Handle library index pages: dart-core-library → dart-core/
+        path = path.replaceFirst(RegExp(r'-library$'), '/');
+        // Make absolute with /api/ prefix.
+        if (!path.startsWith('/')) {
+          path = '/api/$path';
+        }
+        return '[$linkText]($path)';
+      },
+    );
+
     return sanitizeHtml(rendered, extraAllowedHosts: allowedIframeHosts);
   }
 
@@ -430,6 +503,12 @@ class VitePressDocProcessor {
       if (linkedElement is Documentable) {
         final documentable = linkedElement as Documentable;
 
+        // Guard: private or internal elements have no generated page.
+        // Render as inline code instead of producing a broken link.
+        if (!_hasPublicPage(documentable)) {
+          return md.Element.text('code', referenceText);
+        }
+
         // Escape angle brackets in link text so VitePress/Vue doesn't
         // interpret generic type parameters (e.g. `<Object>`) as HTML
         // component tags.
@@ -454,6 +533,24 @@ class VitePressDocProcessor {
           // packages. For external packages this is a no-op since their
           // href contains a full remote URL.
           href = href.replaceAll(_htmlBasePlaceholder, '');
+
+          // Rewrite relative dartdoc .html paths to VitePress paths.
+          // When linkFor() returns null but href exists with .html suffix,
+          // it's a dartdoc-format relative path that won't exist in
+          // VitePress output.
+          if (href.isNotEmpty &&
+              !href.startsWith('http') &&
+              href.endsWith('.html')) {
+            // Remove .html extension.
+            href = href.replaceFirst(RegExp(r'\.html$'), '');
+            // Handle library index pages: dart-core-library → dart-core/
+            href = href.replaceFirst(RegExp(r'-library$'), '/');
+            // Make absolute with /api/ prefix.
+            if (!href.startsWith('/')) {
+              href = '/api/$href';
+            }
+          }
+
           if (href.isNotEmpty) {
             final anchor = md.Element('a', [md.Text(safeText)]);
             anchor.attributes['href'] = href;
@@ -470,6 +567,20 @@ class VitePressDocProcessor {
     // Reference not resolved -- render as inline code, matching dartdoc's
     // behavior for unresolved references.
     return md.Element.text('code', referenceText);
+  }
+
+  /// Returns `true` if [element] has a public page in the generated output.
+  ///
+  /// Private elements (names starting with `_`) and elements whose canonical
+  /// library is not public will not have generated pages, so linking to them
+  /// would produce broken links.
+  bool _hasPublicPage(Documentable element) {
+    if (!element.isPublic) return false;
+    if (element is ModelElement) {
+      final lib = element.canonicalLibrary ?? element.library;
+      if (lib != null && !lib.isPublic) return false;
+    }
+    return true;
   }
 
   /// Escapes `<` and `>` in link display text to prevent VitePress/Vue
@@ -550,8 +661,7 @@ class MarkdownRenderer implements md.NodeVisitor {
   }
 
   /// Matches generic type parameter patterns like `<Object>`, `<T>`,
-  /// `<DiagnosticsNode>`, `<Key, Value>` but NOT HTML tags like `<iframe>`,
-  /// `</div>`, or Vue components.
+  /// `<DiagnosticsNode>`, `<Key, Value>`.
   ///
   /// Pattern: `<` followed by an uppercase letter, then word chars and
   /// optional nested generics/commas, closed by `>`.
@@ -559,22 +669,39 @@ class MarkdownRenderer implements md.NodeVisitor {
     r'<([A-Z]\w*(?:\s*,\s*[A-Z]\w*)*(?:<[^>]*>)?)>',
   );
 
+  /// Matches HTML-like tags: opening (`<tag ...>`), closing (`</tag>`),
+  /// or self-closing (`<tag ... />`).
+  static final _htmlTagPattern = RegExp(
+    r'<(/?[a-zA-Z][a-zA-Z0-9]*(?:-[a-zA-Z0-9]+)*)\b([^>]*)(/?)>',
+  );
+
   @override
   void visitText(md.Text text) {
     var content = text.textContent;
 
-    // Escape generic type parameters in non-code contexts to prevent
-    // VitePress/Vue from interpreting them as HTML component tags.
+    // Escape HTML tags and generic type parameters in non-code contexts.
     //
-    // Only targets patterns like `<Object>`, `<T>`, `<Key, Value>` --
-    // these start with an uppercase letter (Dart naming convention).
-    // HTML tags (`<iframe>`, `</div>`) and Vue components are left alone.
+    // VitePress compiles markdown as Vue SFCs, so ANY raw HTML tag in
+    // the markdown output triggers Vue's template compiler. Doc comments
+    // often contain HTML tags as examples (e.g. `<menu>`, `<template>`,
+    // `<video>`), which cause compile errors.
+    //
+    // We escape ALL HTML tags to `&lt;...&gt;` and generic type parameters
+    // (like `<Object>`, `<T>`) to `\<...\>`. Intentional HTML from
+    // `{@inject-html}` is handled separately via DARTDOC_INJECT markers
+    // that bypass this escaping.
     //
     // Code blocks and inline code are exempt (rendered verbatim).
     if (!_inCodeBlock && !_inInlineCode && content.contains('<')) {
+      // First escape generic type parameters (backslash style for markdown).
       content = content.replaceAllMapped(
         _genericTypePattern,
         (m) => r'\<' '${m[1]}' r'\>',
+      );
+      // Then escape remaining HTML tags (entity style for Vue).
+      content = content.replaceAllMapped(
+        _htmlTagPattern,
+        (m) => '&lt;${m[1]}${m[2]}${m[3]}&gt;',
       );
     }
 
@@ -739,8 +866,14 @@ class MarkdownRenderer implements md.NodeVisitor {
         return true;
 
       default:
-        // Unknown or raw HTML elements -- pass through as HTML.
-        _writeToTarget(_openTag(element));
+        if (_isSafeHtmlTag(element.tag)) {
+          // Known-safe HTML elements -- pass through as HTML.
+          _writeToTarget(_openTag(element));
+        } else {
+          // Unsafe tags (e.g. <menu>, <video>, <template>, <x-foo>):
+          // escape to prevent Vue template compiler errors.
+          _writeToTarget(_escapedOpenTag(element));
+        }
         return true;
     }
   }
@@ -834,13 +967,18 @@ class MarkdownRenderer implements md.NodeVisitor {
         break;
 
       default:
-        // Close unknown/raw HTML tags.
-        if (element.children != null) {
-          _writeToTarget('</${element.tag}>');
-          // Add a newline after block-level HTML elements so adjacent blocks
-          // (e.g. consecutive <div> alert containers) are separated properly.
-          if (_cellBuffer == null && _isBlockLevelTag(element.tag)) {
-            _writelnToBuffer();
+        if (_isSafeHtmlTag(element.tag)) {
+          // Close known-safe HTML tags.
+          if (element.children != null) {
+            _writeToTarget('</${element.tag}>');
+            if (_cellBuffer == null && _isBlockLevelTag(element.tag)) {
+              _writelnToBuffer();
+            }
+          }
+        } else {
+          // Close escaped unsafe tags.
+          if (element.children != null) {
+            _writeToTarget('&lt;/${element.tag}&gt;');
           }
         }
     }
@@ -863,6 +1001,43 @@ class MarkdownRenderer implements md.NodeVisitor {
     'dialog',
     'address',
   };
+
+  /// HTML tags safe to pass through in VitePress markdown output.
+  ///
+  /// Any tag NOT in this set is escaped to `&lt;tag&gt;` to prevent
+  /// Vue's template compiler from interpreting it as an HTML element.
+  /// This is needed because doc comments sometimes contain HTML tags as
+  /// examples (e.g. `<menu>`, `<video>`, `<template>`) that are not
+  /// meant to be rendered as actual HTML.
+  static const _safeHtmlTags = {
+    // Block containers
+    'div', 'section', 'article', 'aside', 'header', 'footer',
+    'nav', 'main', 'figure', 'figcaption', 'details', 'summary',
+    'address', 'dialog',
+    // Text formatting
+    'span', 'em', 'strong', 'b', 'i', 'u', 's', 'del', 'ins',
+    'mark', 'sub', 'sup', 'small', 'abbr', 'cite', 'q', 'dfn',
+    'kbd', 'var', 'samp', 'time',
+    // Block text
+    'p', 'blockquote',
+    // Links and media
+    'a', 'img', 'iframe', 'picture', 'source',
+    // Lists
+    'ul', 'ol', 'li', 'dl', 'dt', 'dd',
+    // Tables
+    'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
+    'caption', 'colgroup', 'col',
+    // Code
+    'pre', 'code',
+    // Line
+    'br', 'hr', 'wbr',
+    // Headings
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+  };
+
+  /// Whether [tag] is safe to pass through as raw HTML in VitePress.
+  static bool _isSafeHtmlTag(String tag) =>
+      _safeHtmlTags.contains(tag.toLowerCase());
 
   /// Whether [tag] is a block-level HTML element.
   static bool _isBlockLevelTag(String tag) =>
@@ -1018,6 +1193,23 @@ class MarkdownRenderer implements md.NodeVisitor {
       sb.write(' />');
     } else {
       sb.write('>');
+    }
+    return sb.toString();
+  }
+
+  /// Constructs an HTML entity-escaped opening tag for unsafe elements.
+  ///
+  /// Produces `&lt;tag attrs&gt;` instead of `<tag attrs>` so Vue's
+  /// template compiler treats it as text, not an HTML element.
+  String _escapedOpenTag(md.Element element) {
+    final sb = StringBuffer('&lt;${element.tag}');
+    for (final entry in element.attributes.entries) {
+      sb.write(' ${entry.key}="${entry.value}"');
+    }
+    if (element.isEmpty) {
+      sb.write(' /&gt;');
+    } else {
+      sb.write('&gt;');
     }
     return sb.toString();
   }
