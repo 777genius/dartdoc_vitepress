@@ -131,10 +131,23 @@ class VitePressSidebarGenerator {
           buf.writeln("      link: '/api/$dirName/',");
           buf.writeln('    },');
         } else {
+          // If one library has the same name as the package, make the
+          // group header link to it and skip the duplicate entry.
+          final sameNameLib = libraries
+              .where((l) => l.name == package.name)
+              .firstOrNull;
+          final otherLibs = sameNameLib != null
+              ? libraries.where((l) => l.name != package.name).toList()
+              : libraries;
+
           buf.writeln('    {');
           buf.writeln("      text: '${_escapeTs(package.name)}',");
+          if (sameNameLib != null) {
+            final dirName = paths.dirNameFor(sameNameLib);
+            buf.writeln("      link: '/api/$dirName/',");
+          }
           buf.writeln('      items: [');
-          for (final library in libraries) {
+          for (final library in otherLibs) {
             final dirName = paths.dirNameFor(library);
             buf.writeln('        {');
             buf.writeln("          text: '${_escapeTs(library.name)}',");
