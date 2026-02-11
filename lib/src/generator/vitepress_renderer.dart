@@ -994,7 +994,7 @@ String renderPackagePage(
   // Libraries table (filter out stub libraries with no API elements).
   final libraries = package.libraries
       .where((lib) => lib.isPublic && lib.isDocumented)
-      .where((lib) => _hasApiElements(lib))
+      .where(_hasApiElements)
       .toList()
     ..sort((a, b) => a.name.compareTo(b.name));
 
@@ -1066,7 +1066,7 @@ String renderWorkspaceOverview(
     // Libraries table for this package (filter out stub libraries).
     final libraries = package.libraries
         .where((lib) => lib.isPublic && lib.isDocumented)
-        .where((lib) => _hasApiElements(lib))
+        .where(_hasApiElements)
         .toList()
       ..sort((a, b) => a.name.compareTo(b.name));
 
