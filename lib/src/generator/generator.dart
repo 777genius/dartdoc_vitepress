@@ -10,6 +10,8 @@ import 'package:dartdoc_vitepress/src/generator/generator_backend.dart';
 import 'package:dartdoc_vitepress/src/generator/html_generator_backend.dart';
 import 'package:dartdoc_vitepress/src/generator/templates.dart';
 import 'package:dartdoc_vitepress/src/generator/vitepress_generator_backend.dart';
+import 'package:dartdoc_vitepress/src/generator/vitepress_renderer.dart'
+    show isDuplicateSdkLibrary;
 import 'package:dartdoc_vitepress/src/logging.dart';
 import 'package:dartdoc_vitepress/src/model/model.dart';
 import 'package:dartdoc_vitepress/src/model_utils.dart';
@@ -163,7 +165,15 @@ class Generator {
         _generatorBackend.generateCategory(packageGraph, category);
       }
 
+      final allPackageLibs = package.libraries.toList();
       for (var lib in package.libraries.whereDocumented) {
+        // Skip duplicate internal SDK libraries (e.g. `dart.collection`
+        // when `dart:collection` already exists). These are analyzer
+        // artifacts that produce ~800 duplicate files and ~20MB bloat.
+        if (_generatorBackend is VitePressGeneratorBackend &&
+            isDuplicateSdkLibrary(lib, allPackageLibs)) {
+          continue;
+        }
         if (!multiplePackages) {
           logInfo('Generating docs for library ${lib.breadcrumbName} from '
               '${lib.element.firstFragment.source.uri}...');

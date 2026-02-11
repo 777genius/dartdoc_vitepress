@@ -185,6 +185,15 @@ class VitePressDocProcessor {
   static final _hardcodedHtmlLink =
       RegExp(r'\[([^\]]+)\]\((?!https?://)([^)]+\.html)\)');
 
+  /// Matches Flutter platform-embedder paths (`/javadoc/...`,
+  /// `/ios-embedder/...`) that should be absolute URLs on api.flutter.dev.
+  ///
+  /// SDK doc comments reference these paths as relative links, but they are
+  /// hosted externally and have no local VitePress equivalent.
+  static final _flutterEmbedderLink = RegExp(
+    r'\[([^\]]+)\]\((/(javadoc|ios-embedder)/[^)]+)\)',
+  );
+
   /// Processes the full documentation for [element], resolving cross-references
   /// and `{@inject-html}` placeholders.
   ///
@@ -225,12 +234,56 @@ class VitePressDocProcessor {
 
   /// Processes raw documentation text that is not attached to a [ModelElement].
   ///
-  /// Runs pre-processing (inject-html resolution, placeholder stripping) but
-  /// does NOT resolve bracket references since there is no element context.
-  /// Used for [Category] docs and other non-ModelElement documentation.
+  /// Runs pre-processing (inject-html resolution, placeholder stripping) and
+  /// converts hardcoded `.html` links to VitePress paths, but does NOT resolve
+  /// bracket references since there is no element context.
+  /// Used for [Category] docs, package docs, and other non-ModelElement
+  /// documentation.
   String processRawDocumentation(String? text) {
     if (text == null || text.isEmpty) return '';
-    return _preprocess(text);
+    var result = _preprocess(text);
+    // Rewrite hardcoded relative .html links (same as in _resolveReferences).
+    result = result.replaceAllMapped(
+      _hardcodedHtmlLink,
+      (m) {
+        final linkText = m[1]!;
+        final path = _convertHtmlPathToVitePress(m[2]!);
+        return '[$linkText]($path)';
+      },
+    );
+    return result;
+  }
+
+  /// Converts a dartdoc-style relative `.html` path to a VitePress path.
+  ///
+  /// Handles:
+  /// - Stripping leading `../` segments
+  /// - Removing `.html` extension
+  /// - Converting `-library` suffix to `/` (library index pages)
+  /// - Deduplicating `dir/dir` paths (e.g. `dart-async/dart-async` -> `dart-async/`)
+  /// - Adding `/api/` prefix
+  /// - Normalizing the path via [Uri] to resolve any remaining `..` segments
+  static String _convertHtmlPathToVitePress(String rawPath) {
+    var path = rawPath;
+    // Strip leading `../` segments (relative paths from nested doc comments).
+    path = path.replaceFirst(RegExp(r'^(\.\./)+'), '');
+    // Remove .html extension.
+    path = path.replaceFirst(RegExp(r'\.html$'), '');
+    // Handle library index pages: dart-core-library -> dart-core/
+    path = path.replaceFirst(RegExp(r'-library$'), '/');
+    // Deduplicate dir/dir pattern: when the last segment matches the parent
+    // directory name, collapse to just the directory with trailing slash.
+    // E.g. `dart-async/dart-async` -> `dart-async/`
+    //       `dart-async/dart-async/` -> `dart-async/`
+    final dedup = RegExp(r'([^/]+)/\1/?$');
+    path = path.replaceFirstMapped(dedup, (m) => '${m[1]}/');
+    // Make absolute with /api/ prefix.
+    if (!path.startsWith('/')) {
+      path = '/api/$path';
+    }
+    // Normalize the path to resolve any remaining relative segments.
+    path = Uri.parse(path).normalizePath().path;
+    return path;
   }
 
   /// Non-HTML marker for `{@inject-html}` placeholders.
@@ -337,17 +390,18 @@ class VitePressDocProcessor {
       _hardcodedHtmlLink,
       (m) {
         final linkText = m[1]!;
-        var path = m[2]!;
-        // Remove .html extension.
-        path = path.replaceFirst(RegExp(r'\.html$'), '');
-        // Handle library index pages: dart-core-library → dart-core/
-        path = path.replaceFirst(RegExp(r'-library$'), '/');
-        // Make absolute with /api/ prefix.
-        if (!path.startsWith('/')) {
-          path = '/api/$path';
-        }
+        final path = _convertHtmlPathToVitePress(m[2]!);
         return '[$linkText]($path)';
       },
+    );
+
+    // Rewrite Flutter platform-embedder paths to absolute URLs.
+    // SDK doc comments contain links like `[text](/javadoc/...)` and
+    // `[text](/ios-embedder/...)` which are hosted on api.flutter.dev,
+    // not locally. Without this rewrite they produce broken 404 links.
+    rendered = rendered.replaceAllMapped(
+      _flutterEmbedderLink,
+      (m) => '[${m[1]}](https://api.flutter.dev${m[2]})',
     );
 
     return sanitizeHtml(rendered, extraAllowedHosts: allowedIframeHosts);
@@ -541,14 +595,7 @@ class VitePressDocProcessor {
           if (href.isNotEmpty &&
               !href.startsWith('http') &&
               href.endsWith('.html')) {
-            // Remove .html extension.
-            href = href.replaceFirst(RegExp(r'\.html$'), '');
-            // Handle library index pages: dart-core-library → dart-core/
-            href = href.replaceFirst(RegExp(r'-library$'), '/');
-            // Make absolute with /api/ prefix.
-            if (!href.startsWith('/')) {
-              href = '/api/$href';
-            }
+            href = _convertHtmlPathToVitePress(href);
           }
 
           if (href.isNotEmpty) {
@@ -639,6 +686,12 @@ class MarkdownRenderer implements md.NodeVisitor {
   /// Whether we are currently inside an inline `<code>` element.
   /// Content inside should NOT be escaped.
   bool _inInlineCode = false;
+
+  /// Whether we are currently inside an `<a>` element (link).
+  /// Link text is already escaped by [VitePressDocProcessor._escapeLinkText],
+  /// so [_escapeAngleBrackets] must NOT be called again to avoid
+  /// double-escaping (`\<` → `\&lt;`).
+  bool _inLink = false;
 
   /// Whether we are currently inside a GitHub-style markdown alert block
   /// (`<div class="markdown-alert-*">`), which needs to be converted to
@@ -738,7 +791,17 @@ class MarkdownRenderer implements md.NodeVisitor {
         // Not a generic -- check if it's an HTML-like tag.
         final tagMatch = _htmlTagPattern.matchAsPrefix(content, i);
         if (tagMatch != null) {
-          buf.write('&lt;${tagMatch[1]}${tagMatch[2]}${tagMatch[3]}&gt;');
+          // Extract the tag name, stripping leading `/` for closing tags.
+          final rawTag = tagMatch[1]!;
+          final tagName =
+              rawTag.startsWith('/') ? rawTag.substring(1) : rawTag;
+          if (_safeHtmlTags.contains(tagName.toLowerCase())) {
+            // Safe HTML tag — pass through unescaped.
+            buf.write(tagMatch[0]!);
+          } else {
+            // Unsafe tag — escape with entities.
+            buf.write('&lt;${tagMatch[1]}${tagMatch[2]}${tagMatch[3]}&gt;');
+          }
           i = tagMatch.end;
           continue;
         }
@@ -783,7 +846,7 @@ class MarkdownRenderer implements md.NodeVisitor {
     // DARTDOC_INJECT markers that bypass this escaping.
     //
     // Code blocks and inline code are exempt (rendered verbatim).
-    if (!_inCodeBlock && !_inInlineCode && content.contains('<')) {
+    if (!_inCodeBlock && !_inInlineCode && !_inLink && content.contains('<')) {
       content = _escapeAngleBrackets(content);
     }
 
@@ -882,6 +945,7 @@ class MarkdownRenderer implements md.NodeVisitor {
 
       case 'a':
         // Links: `[text](href)`
+        _inLink = true;
         _writeToTarget('[');
         return true;
 
@@ -1041,6 +1105,7 @@ class MarkdownRenderer implements md.NodeVisitor {
         _writeToTarget('~~');
 
       case 'a':
+        _inLink = false;
         final href = element.attributes['href'] ?? '';
         final title = element.attributes['title'];
         if (title != null) {

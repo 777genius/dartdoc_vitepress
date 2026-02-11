@@ -3,6 +3,8 @@
 // BSD-style license that can be found in the LICENSE file.
 
 import 'package:dartdoc_vitepress/src/generator/vitepress_paths.dart';
+import 'package:dartdoc_vitepress/src/generator/vitepress_renderer.dart'
+    show isDuplicateSdkLibrary;
 import 'package:dartdoc_vitepress/src/model/model.dart';
 
 /// Generates the `.vitepress/generated/api-sidebar.ts` TypeScript file that
@@ -66,7 +68,11 @@ class VitePressSidebarGenerator {
     buf.writeln("  '/api/': [");
 
     for (final package in packages) {
-      final libraries = package.publicLibrariesSorted;
+      final allPkgLibs = package.publicLibrariesSorted;
+      // Filter out duplicate internal SDK libraries.
+      final libraries = allPkgLibs
+          .where((l) => !isDuplicateSdkLibrary(l, allPkgLibs))
+          .toList();
       if (libraries.isEmpty) continue;
 
       final categories = _sortedCategoriesWithLibraries(package);
@@ -95,7 +101,8 @@ class VitePressSidebarGenerator {
               .where((l) => l.name == package.name)
               .firstOrNull;
           final otherLibs = sameNameLib != null
-              ? libraries.where((l) => l.name != package.name).toList()
+              ? (libraries.where((l) => l.name != package.name).toList()
+                ..sort((a, b) => a.name.compareTo(b.name)))
               : libraries;
           final displayNames = _disambiguatedNames(otherLibs);
 
@@ -151,9 +158,12 @@ class VitePressSidebarGenerator {
     );
 
     for (final package in packages) {
-      for (final library in package.publicLibrariesSorted) {
+      final allPackageLibs = package.publicLibrariesSorted;
+      for (final library in allPackageLibs) {
         // Skip stub libraries with no API elements.
         if (_countLibraryElements(library) == 0) continue;
+        // Skip duplicate internal SDK libraries (e.g. `dart.collection`).
+        if (isDuplicateSdkLibrary(library, allPackageLibs)) continue;
         final dirName = paths.dirNameFor(library);
         final base = '/api/$dirName/';
         buf.writeln("  '${_escapeTs(base)}': [");
@@ -165,7 +175,11 @@ class VitePressSidebarGenerator {
     // Fallback overview sidebar for /api/.
     buf.writeln("  '/api/': [");
     for (final package in packages) {
-      final libraries = package.publicLibrariesSorted;
+      final allPkgLibs = package.publicLibrariesSorted;
+      // Filter out duplicate internal SDK libraries for the overview sidebar.
+      final libraries = allPkgLibs
+          .where((l) => !isDuplicateSdkLibrary(l, allPkgLibs))
+          .toList();
       if (libraries.isEmpty) continue;
 
       final categories = _sortedCategoriesWithLibraries(package);
@@ -195,7 +209,8 @@ class VitePressSidebarGenerator {
               .where((l) => l.name == package.name)
               .firstOrNull;
           final otherLibs = sameNameLib != null
-              ? libraries.where((l) => l.name != package.name).toList()
+              ? (libraries.where((l) => l.name != package.name).toList()
+                ..sort((a, b) => a.name.compareTo(b.name)))
               : libraries;
           final displayNames = _disambiguatedNames(otherLibs);
 
@@ -267,10 +282,12 @@ class VitePressSidebarGenerator {
 
     for (final category in categories) {
       // Only include libraries with actual API elements (classes, functions,
-      // etc.) — skip stub/overview-only libraries.
+      // etc.) — skip stub/overview-only libraries and duplicate SDK libraries.
       final libs = category.publicLibrariesSorted
           .where((l) => _countLibraryElements(l) > 0)
-          .toList();
+          .where((l) => !isDuplicateSdkLibrary(l, allLibraries))
+          .toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
       categorizedLibs.addAll(category.publicLibrariesSorted);
 
       // Skip empty categories with no external items.
@@ -310,11 +327,12 @@ class VitePressSidebarGenerator {
       buf.writeln('$pad},');
     }
 
-    // Libraries not in any category (filter out stub libraries, sort
-    // alphabetically).
+    // Libraries not in any category (filter out stub libraries and duplicate
+    // SDK libraries, sort alphabetically).
     final uncategorized = allLibraries
         .where((l) => !categorizedLibs.contains(l))
         .where((l) => _countLibraryElements(l) > 0)
+        .where((l) => !isDuplicateSdkLibrary(l, allLibraries))
         .toList()
       ..sort((a, b) => a.name.compareTo(b.name));
 

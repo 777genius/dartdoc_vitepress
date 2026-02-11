@@ -89,7 +89,14 @@ class _MarkdownPageBuilder {
     _buffer.writeln('---');
     // Quote the title to handle special characters like `<` and `:`.
     _buffer.writeln('title: "${yamlEscape(title)}"');
-    _buffer.writeln('description: "${yamlEscape(description)}"');
+    // Escape angle brackets in description for valid HTML meta tags.
+    // VitePress inserts description into <meta name="description" content="...">,
+    // so raw `<>` from generic types must be escaped to HTML entities.
+    // Title is NOT escaped because VitePress uses it in sidebar/navbar text
+    // where entities would render literally.
+    final safeDescription =
+        description.replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+    _buffer.writeln('description: "${yamlEscape(safeDescription)}"');
     if (category != null) {
       _buffer.writeln('category: "${yamlEscape(category)}"');
     }
@@ -982,19 +989,25 @@ String renderPackagePage(
   builder.writeH1(package.name);
 
   // Package documentation (strip leading H1 if it matches the package name
-  // to avoid a duplicate heading, since README often starts with # PackageName)
+  // to avoid a duplicate heading, since README often starts with # PackageName).
+  // Process through processRawDocumentation to convert dartdoc-style .html
+  // links to VitePress paths.
   var packageDoc = package.documentation;
   if (packageDoc != null && packageDoc.isNotEmpty) {
     packageDoc = _stripLeadingH1(packageDoc, package.name);
+    packageDoc = docs.processRawDocumentation(packageDoc);
     if (packageDoc.isNotEmpty) {
       builder.writeParagraph(packageDoc);
     }
   }
 
-  // Libraries table (filter out stub libraries with no API elements).
-  final libraries = package.libraries
+  // Libraries table (filter out stub libraries with no API elements and
+  // duplicate internal SDK libraries like `dart.collection`).
+  final allLibs = package.libraries.toList();
+  final libraries = allLibs
       .where((lib) => lib.isPublic && lib.isDocumented)
       .where(_hasApiElements)
+      .where((lib) => !isDuplicateSdkLibrary(lib, allLibs))
       .toList()
     ..sort((a, b) => a.name.compareTo(b.name));
 
@@ -1063,10 +1076,13 @@ String renderWorkspaceOverview(
       builder.writeParagraph(description);
     }
 
-    // Libraries table for this package (filter out stub libraries).
-    final libraries = package.libraries
+    // Libraries table for this package (filter out stub libraries and
+    // duplicate internal SDK libraries).
+    final allPackageLibs = package.libraries.toList();
+    final libraries = allPackageLibs
         .where((lib) => lib.isPublic && lib.isDocumented)
         .where(_hasApiElements)
+        .where((lib) => !isDuplicateSdkLibrary(lib, allPackageLibs))
         .toList()
       ..sort((a, b) => a.name.compareTo(b.name));
 
@@ -1832,6 +1848,48 @@ String _buildExtensionTypeDeclaration(ExtensionType et) {
   }
 
   return parts.join(' ');
+}
+
+/// Returns `true` if [lib] is a duplicate internal SDK library (e.g.
+/// `dart.collection`) that should be filtered out because a canonical
+/// `dart:xxx` version already exists in [allLibraries].
+///
+/// The Dart SDK analyzer creates two Library objects for the same library:
+/// - Canonical: `dart:collection` (directory `dart-collection/`)
+/// - Internal:  `dart.collection` (directory `dart.collection/`)
+///
+/// Not all `dart.xxx` libraries have a canonical counterpart (e.g.
+/// `dart.dom.svg`, `dart.mirrors`) -- those must be kept.
+///
+/// Mapping heuristics:
+/// 1. `dart.xxx` -> `dart:xxx` (direct replacement of first `.` with `:`)
+/// 2. `dart.dom.html` -> `dart:html` (strip `.dom.` prefix)
+bool isDuplicateSdkLibrary(Library lib, Iterable<Library> allLibraries) {
+  final name = lib.name;
+
+  // Canonical libraries (containing `:`) are never duplicates.
+  if (!name.contains('.') || name.contains(':')) return false;
+
+  // Only handle `dart.xxx` prefixed names.
+  if (!name.startsWith('dart.')) return false;
+
+  // Build the set of canonical library names for fast lookup.
+  final canonicalNames = <String>{
+    for (final l in allLibraries)
+      if (l.name.contains(':')) l.name,
+  };
+
+  // Heuristic 1: direct mapping `dart.xxx` -> `dart:xxx`.
+  final directCanonical = 'dart:${name.substring('dart.'.length)}';
+  if (canonicalNames.contains(directCanonical)) return true;
+
+  // Heuristic 2: `dart.dom.xxx` -> `dart:xxx` (strip `.dom.`).
+  if (name.startsWith('dart.dom.')) {
+    final domCanonical = 'dart:${name.substring('dart.dom.'.length)}';
+    if (canonicalNames.contains(domCanonical)) return true;
+  }
+
+  return false;
 }
 
 /// Returns `true` if the library has any public API elements (classes,
