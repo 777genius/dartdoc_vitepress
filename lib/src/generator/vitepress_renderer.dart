@@ -2018,8 +2018,13 @@ String _stripLeadingH1(String text, String expectedTitle) {
   if (match == null) return text;
 
   final title = match.group(1)!.trim();
-  if (title == expectedTitle) {
-    // Exact duplicate — strip entirely.
+  // Normalize hyphens/underscores for comparison, since VitePress treats
+  // them identically when generating heading slugs. A README titled
+  // "dartdoc-vitepress" should match package name "dartdoc_vitepress".
+  final normalizedTitle = title.toLowerCase().replaceAll('-', '_');
+  final normalizedExpected = expectedTitle.toLowerCase().replaceAll('-', '_');
+  if (normalizedTitle == normalizedExpected) {
+    // Duplicate (modulo hyphen/underscore/case) — strip entirely.
     return text.substring(match.end).trimLeft();
   }
   // Different H1 from user content — downshift to H2.
