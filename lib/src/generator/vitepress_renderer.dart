@@ -52,10 +52,78 @@ String escapeGenerics(String text) =>
 // Testable string helpers.
 // ---------------------------------------------------------------------------
 
-/// Escapes pipe characters in table cell content to prevent breaking the
-/// markdown table structure.
+/// Escapes pipe characters and angle brackets in table cell content.
+///
+/// Pipes are escaped to prevent breaking the markdown table structure.
+/// Angle brackets are escaped to prevent VitePress/Vue from interpreting
+/// generic type parameters (e.g. `List<E>`) as HTML component tags.
+/// Content that is already escaped (backslash-prefixed `\<`, `\>`) or
+/// wrapped in inline code backticks is left untouched.
 @visibleForTesting
-String escapeTableCell(String cell) => cell.replaceAll('|', r'\|');
+String escapeTableCell(String cell) {
+  var result = cell.replaceAll('|', r'\|');
+  // Escape angle brackets that are not already escaped and not inside
+  // backtick-delimited inline code spans.
+  if (result.contains('<')) {
+    result = _escapeAngleBracketsInCell(result);
+  }
+  return result;
+}
+
+/// Escapes unescaped angle brackets in a table cell, preserving:
+/// - Already-escaped sequences (`\<`, `\>`)
+/// - Content inside backtick-delimited inline code spans
+/// - Markdown link syntax `[text](url)`
+/// - VitePress Badge components (`<Badge .../>`)
+String _escapeAngleBracketsInCell(String text) {
+  final buf = StringBuffer();
+  final len = text.length;
+  var i = 0;
+
+  while (i < len) {
+    final ch = text[i];
+
+    // Skip inline code spans without escaping.
+    if (ch == '`') {
+      final codeEnd = text.indexOf('`', i + 1);
+      if (codeEnd != -1) {
+        buf.write(text.substring(i, codeEnd + 1));
+        i = codeEnd + 1;
+        continue;
+      }
+    }
+
+    // Skip already-escaped angle brackets.
+    if (ch == r'\' && i + 1 < len && (text[i + 1] == '<' || text[i + 1] == '>')) {
+      buf.write(text.substring(i, i + 2));
+      i += 2;
+      continue;
+    }
+
+    if (ch == '<') {
+      // Preserve VitePress Badge components: <Badge type="..." text="..." />
+      if (text.substring(i).startsWith('<Badge ')) {
+        final closeIndex = text.indexOf('/>', i);
+        if (closeIndex != -1) {
+          buf.write(text.substring(i, closeIndex + 2));
+          i = closeIndex + 2;
+          continue;
+        }
+      }
+      // Escape the angle bracket.
+      buf.write(r'\<');
+      i++;
+    } else if (ch == '>') {
+      buf.write(r'\>');
+      i++;
+    } else {
+      buf.write(ch);
+      i++;
+    }
+  }
+
+  return buf.toString();
+}
 
 /// Escapes characters that are special in YAML double-quoted string values.
 @visibleForTesting
@@ -183,10 +251,14 @@ class _MarkdownPageBuilder {
   }
 
   /// Writes a deprecation warning container.
+  ///
+  /// The [message] is escaped for angle brackets to prevent VitePress/Vue
+  /// from interpreting generic type parameters in deprecation messages
+  /// (e.g. "Use `Foo<Bar>` instead") as HTML component tags.
   void writeDeprecationNotice(String message) {
     _buffer.writeln(':::warning DEPRECATED');
     if (message.isNotEmpty) {
-      _buffer.writeln(message);
+      _buffer.writeln(escapeGenerics(message));
     }
     _buffer.writeln(':::');
     _buffer.writeln();
@@ -194,6 +266,11 @@ class _MarkdownPageBuilder {
 
   /// Writes an info container (blue) for reference sections like
   /// "Implementers", "Superclass Constraints", "Available Extensions".
+  ///
+  /// Items should be pre-escaped by callers (e.g. via [_markdownLink] or
+  /// [escapeGenerics]). This method does NOT apply additional escaping
+  /// because items may contain valid markdown links with intentional
+  /// backslash-escaped generics.
   void writeInfoContainer(String title, List<String> items) {
     if (items.isEmpty) return;
     _buffer.writeln(':::info $title');
@@ -243,8 +320,13 @@ class _MarkdownPageBuilder {
   }
 
   /// Writes an "Inherited from" notice.
+  ///
+  /// The [className] is escaped for angle brackets to prevent VitePress/Vue
+  /// from interpreting generic type parameters in class names as HTML
+  /// component tags. While `element.enclosingElement.name` typically returns
+  /// a bare name without generics, this provides defensive safety.
   void writeInheritedFrom(String className) {
-    _buffer.writeln('*Inherited from $className.*');
+    _buffer.writeln('*Inherited from ${escapeGenerics(className)}.*');
     _buffer.writeln();
   }
 
@@ -548,11 +630,13 @@ String _buildConstructorSignature(Constructor constructor) {
 /// `## Other resources {#other-resources}`), VitePress fails on duplicate IDs.
 ///
 /// This function:
-/// 1. Strips explicit `{#...}` heading IDs — VitePress auto-generates unique
-///    IDs and handles duplicates by appending `-1`, `-2`, etc.
-/// 2. Increases heading depth by 2 levels (## → ####, ### → #####) so that
+/// 1. Strips explicit `{#...}` heading IDs.
+/// 2. Increases heading depth by 2 levels (## -> ####, ### -> #####) so that
 ///    headings within member docs nest properly under the H3 member heading.
-String _postProcessMemberDoc(String doc) {
+/// 3. Appends a unique explicit `{#memberAnchor-heading-slug}` ID to each
+///    heading, preventing VitePress auto-slug conflicts when multiple members
+///    on the same page have identically-named headings.
+String _postProcessMemberDoc(String doc, {required String memberAnchor}) {
   final lines = doc.split('\n');
   final result = <String>[];
   for (final line in lines) {
@@ -568,6 +652,12 @@ String _postProcessMemberDoc(String doc) {
       if (newDepth <= 6) {
         processed = processed.replaceFirst(hashes, '#' * newDepth);
       }
+      // Extract the heading text (after the hashes and space) for slug generation
+      final headingText = processed.replaceFirst(RegExp(r'^#{1,6}\s+'), '');
+      final headingSlug = VitePressPathResolver.sanitizeAnchor(headingText);
+      if (headingSlug.isNotEmpty) {
+        processed = '$processed {#$memberAnchor-$headingSlug}';
+      }
     }
     result.add(processed);
   }
@@ -577,8 +667,9 @@ String _postProcessMemberDoc(String doc) {
 void _renderMemberDocumentation(
   _MarkdownPageBuilder builder,
   ModelElement element,
-  VitePressDocProcessor docs,
-) {
+  VitePressDocProcessor docs, {
+  required String memberAnchor,
+}) {
   // Deprecation warning
   if (element.isDeprecated) {
     builder.writeDeprecationNotice(_extractDeprecationMessage(element));
@@ -586,7 +677,7 @@ void _renderMemberDocumentation(
 
   // Main documentation
   var doc = docs.processDocumentation(element);
-  doc = _postProcessMemberDoc(doc);
+  doc = _postProcessMemberDoc(doc, memberAnchor: memberAnchor);
   builder.writeParagraph(doc);
 
   // Inherited-from notice: use the analyzer element's enclosing element name
@@ -863,7 +954,8 @@ void _renderConstructorMember(
 
   builder.writeCodeBlock(_buildConstructorSignature(constructor));
 
-  _renderMemberDocumentation(builder, constructor, docs);
+  _renderMemberDocumentation(builder, constructor, docs,
+      memberAnchor: anchor);
 }
 
 /// Renders a single field/property as an h3 member section.
@@ -914,7 +1006,7 @@ void _renderFieldMember(
 
   builder.writeCodeBlock(sig.toString());
 
-  _renderMemberDocumentation(builder, field, docs);
+  _renderMemberDocumentation(builder, field, docs, memberAnchor: anchor);
 }
 
 /// Renders a single method or operator as an h3 member section.
@@ -939,7 +1031,7 @@ void _renderMethodMember(
 
   builder.writeCodeBlock(_buildCallableSignature(method));
 
-  _renderMemberDocumentation(builder, method, docs);
+  _renderMemberDocumentation(builder, method, docs, memberAnchor: anchor);
 }
 
 // ---------------------------------------------------------------------------

@@ -39,6 +39,16 @@ class VitePressPathResolver {
   /// collisions.
   final Map<Library, String> _libraryDirNames = {};
 
+  /// Maps library **name** to its canonical directory name.
+  ///
+  /// This is a secondary index built alongside [_libraryDirNames] that
+  /// allows [_resolvedDirName] to resolve libraries even when the Library
+  /// object instance returned by `element.canonicalLibrary` differs from
+  /// the instance stored in [_libraryDirNames]. The Dart SDK analyzer may
+  /// create multiple Library objects with the same name (e.g. `dart.io`),
+  /// and identity-based map lookups can fail for cross-library references.
+  final Map<String, String> _nameBasedDirNames = {};
+
   /// Maps each library to the set of lowercased sanitized file names of its
   /// container-type elements (classes, enums, mixins, extensions, extension
   /// types).
@@ -60,6 +70,7 @@ class VitePressPathResolver {
   /// paths instead of producing broken `/api/dart.io/` URLs.
   void initFromPackageGraph(PackageGraph packageGraph) {
     _libraryDirNames.clear();
+    _nameBasedDirNames.clear();
     _containerNames.clear();
 
     // Collect all (library, dirName) pairs.
@@ -129,6 +140,14 @@ class VitePressPathResolver {
         // and _libraryDirName() will return null for non-local packages,
         // causing the reference to render as inline code.
       }
+    }
+
+    // Build a name-based secondary index from all mapped libraries.
+    // This allows _resolvedDirName() to resolve libraries by name when the
+    // Library object instance doesn't match (e.g. canonicalLibrary returns
+    // a different instance than the one iterated here).
+    for (final entry in _libraryDirNames.entries) {
+      _nameBasedDirNames[entry.key.name] = entry.value;
     }
 
     // Build the set of lowercased container names per library for
@@ -383,9 +402,16 @@ class VitePressPathResolver {
 
   /// Returns the unique directory name for [library], using the collision-safe
   /// mapping from [initFromPackageGraph] if available, otherwise falling back
-  /// to the library's own [Library.dirName].
+  /// to a name-based lookup, and finally to the library's own [Library.dirName].
+  ///
+  /// The name-based fallback handles the case where `element.canonicalLibrary`
+  /// returns a Library instance that is different from the one stored in
+  /// [_libraryDirNames] (the Dart SDK analyzer may create multiple Library
+  /// objects with the same name, e.g. `dart.io`).
   String _resolvedDirName(Library library) {
-    return _libraryDirNames[library] ?? library.dirName;
+    return _libraryDirNames[library] ??
+        _nameBasedDirNames[library.name] ??
+        library.dirName;
   }
 
   /// Returns a safe file name for an element.
@@ -519,7 +545,6 @@ class VitePressPathResolver {
   /// Sanitizes a string for use as an anchor ID.
   ///
   /// Replaces non-alphanumeric characters with hyphens and lowercases.
-  @visibleForTesting
   static String sanitizeAnchor(String value) {
     return value
         .replaceAll(_nonAlphanumeric, '-')
