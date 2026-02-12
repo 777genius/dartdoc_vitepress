@@ -202,8 +202,8 @@ class _MarkdownPageBuilder {
     final buf = StringBuffer('# ');
 
     if (deprecated) {
-      buf.write('~~$escaped~~ ');
       buf.write('<Badge type="warning" text="deprecated" /> ');
+      buf.write('~~$escaped~~ ');
     } else {
       buf.write('$escaped ');
     }
@@ -234,8 +234,8 @@ class _MarkdownPageBuilder {
   }) {
     final escapedText = escapeGenerics(text);
     if (deprecated) {
-      _buffer.writeln('### ~~$escapedText~~ '
-          '<Badge type="warning" text="deprecated" /> {#$anchor}');
+      _buffer.writeln('### <Badge type="warning" text="deprecated" /> '
+          '~~$escapedText~~ {#$anchor}');
     } else {
       _buffer.writeln('### $escapedText {#$anchor}');
     }

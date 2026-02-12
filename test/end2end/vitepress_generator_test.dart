@@ -385,7 +385,7 @@ void main() {
         // topLevelFunction in fake has multiple params (it's also deprecated)
         var content = _readOutput(outDir, 'api/fake/topLevelFunction.md');
         expect(content,
-            matches(RegExp(r'^# ~~?topLevelFunction~~?', multiLine: true)));
+            matches(RegExp(r'^# .*~~?topLevelFunction~~?', multiLine: true)));
         expect(content, contains('```dart'));
         // Signature should mention parameter names
         expect(content, contains('param1'));

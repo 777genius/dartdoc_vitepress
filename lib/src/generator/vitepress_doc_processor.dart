@@ -255,7 +255,18 @@ class VitePressDocProcessor {
         return '[$linkText]($path)';
       },
     );
-    return result;
+    // Run through the markdown parser + renderer to escape angle brackets
+    // in non-code contexts. Without this, raw documentation text containing
+    // generic type parameters (e.g. `List<E>` in package READMEs or category
+    // docs) would cause VitePress/Vue template compilation errors.
+    final document = md.Document(
+      blockSyntaxes: _blockSyntaxes,
+      inlineSyntaxes: _inlineSyntaxes,
+      encodeHtml: false,
+    );
+    final nodes = document.parse(result);
+    result = MarkdownRenderer().render(nodes);
+    return sanitizeHtml(result, extraAllowedHosts: allowedIframeHosts);
   }
 
   /// Converts a dartdoc-style relative `.html` path to a VitePress path.
@@ -1276,7 +1287,7 @@ class MarkdownRenderer implements md.NodeVisitor {
     // Block text
     'p', 'blockquote',
     // Links and media
-    'a', 'img', 'iframe', 'picture', 'source',
+    'a', 'img', 'iframe', 'picture', 'source', 'video', 'audio',
     // Lists
     'ul', 'ol', 'li', 'dl', 'dt', 'dd',
     // Tables
