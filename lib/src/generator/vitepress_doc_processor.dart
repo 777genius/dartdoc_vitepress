@@ -882,8 +882,43 @@ class MarkdownRenderer implements md.NodeVisitor {
           final tagName =
               rawTag.startsWith('/') ? rawTag.substring(1) : rawTag;
           if (_safeHtmlTags.contains(tagName.toLowerCase())) {
-            // Safe HTML tag — pass through unescaped.
-            buf.write(tagMatch[0]!);
+            final isClosing = rawTag.startsWith('/');
+            final isSelfClosing = tagMatch[3] == '/' ||
+                _voidHtmlTags.contains(tagName.toLowerCase());
+            // Vue components (PascalCase like <Badge>) always pass through.
+            final isVueComponent = tagName.isNotEmpty &&
+                tagName[0] == tagName[0].toUpperCase() &&
+                tagName[0] != tagName[0].toLowerCase();
+            if (isSelfClosing || isVueComponent) {
+              // Self-closing/void tags and Vue components always pass through.
+              buf.write(tagMatch[0]!);
+            } else if (isClosing) {
+              // Closing tag: only pass through if there's a matching opening
+              // tag earlier in the SAME text content. Without this check,
+              // orphaned closing tags (split into separate text nodes by the
+              // markdown parser) produce "Invalid end tag" errors in Vue.
+              final openTag = '<${tagName.toLowerCase()}';
+              final before = content.substring(0, i).toLowerCase();
+              if (before.contains(openTag)) {
+                buf.write(tagMatch[0]!);
+              } else {
+                final inner = content.substring(i + 1, tagMatch.end - 1);
+                buf.write('\\<$inner\\>');
+              }
+            } else {
+              // Opening tag: only pass through if there's a matching
+              // closing tag in the remaining content. Without this check,
+              // inline mentions like "the <div> tag" would create orphaned
+              // HTML elements that break Vue's template compiler.
+              final closingTag = '</${tagName.toLowerCase()}>';
+              final remaining = content.substring(tagMatch.end).toLowerCase();
+              if (remaining.contains(closingTag)) {
+                buf.write(tagMatch[0]!);
+              } else {
+                final inner = content.substring(i + 1, tagMatch.end - 1);
+                buf.write('\\<$inner\\>');
+              }
+            }
           } else {
             // Unsafe/unknown HTML tag — escape with backslashes.
             final inner = content.substring(i + 1, tagMatch.end - 1);
@@ -1341,6 +1376,12 @@ class MarkdownRenderer implements md.NodeVisitor {
     'br', 'hr', 'wbr',
     // Headings
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+  };
+
+  /// HTML void elements (self-closing, never have content or closing tags).
+  static const _voidHtmlTags = {
+    'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+    'link', 'meta', 'param', 'source', 'track', 'wbr',
   };
 
   /// Whether [tag] is safe to pass through as raw HTML in VitePress.
