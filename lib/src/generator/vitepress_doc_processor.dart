@@ -18,6 +18,7 @@ import 'package:dartdoc_vitepress/src/model/comment_referable.dart';
 import 'package:dartdoc_vitepress/src/model/model.dart';
 import 'package:dartdoc_vitepress/src/runtime_stats.dart';
 import 'package:markdown/markdown.dart' as md;
+import 'package:meta/meta.dart';
 
 /// Regular expression matching `<dartdoc-html>HEXDIGEST</dartdoc-html>`
 /// placeholders inserted by the `{@inject-html}` directive processing.
@@ -248,6 +249,9 @@ class VitePressDocProcessor {
       (m) {
         final linkText = m[1]!;
         final path = _convertHtmlPathToVitePress(m[2]!);
+        // Empty path means the target has no generated page (e.g. private
+        // SDK libraries like dart._http). Render as inline code.
+        if (path.isEmpty) return '`$linkText`';
         return '[$linkText]($path)';
       },
     );
@@ -261,6 +265,8 @@ class VitePressDocProcessor {
   /// - Removing `.html` extension
   /// - Converting `-library` suffix to `/` (library index pages)
   /// - Deduplicating `dir/dir` paths (e.g. `dart-async/dart-async` -> `dart-async/`)
+  /// - Normalizing internal SDK library directory names (`dart.io` -> `dart-io`,
+  ///   `dart.dom.html` -> `dart-html`)
   /// - Adding `/api/` prefix
   /// - Normalizing the path via [Uri] to resolve any remaining `..` segments
   static String _convertHtmlPathToVitePress(String rawPath) {
@@ -277,6 +283,16 @@ class VitePressDocProcessor {
     //       `dart-async/dart-async/` -> `dart-async/`
     final dedup = RegExp(r'([^/]+)/\1/?$');
     path = path.replaceFirstMapped(dedup, (m) => '${m[1]}/');
+    // Normalize internal SDK library directory names in the path.
+    // The Dart SDK creates duplicate Library objects with internal names
+    // like `dart.io` (dirName `dart.io`) alongside canonical `dart:io`
+    // (dirName `dart-io`). Doc comment hrefs use the internal dirName,
+    // producing paths like `dart.io/SomeClass` that don't exist in the
+    // generated output. Rewrite these to the canonical form.
+    // Returns empty string for private SDK libraries (dart._http, etc.)
+    // which have no generated pages.
+    path = normalizeSdkLibraryPath(path);
+    if (path.isEmpty) return '';
     // Make absolute with /api/ prefix.
     if (!path.startsWith('/')) {
       path = '/api/$path';
@@ -284,6 +300,48 @@ class VitePressDocProcessor {
     // Normalize the path to resolve any remaining relative segments.
     path = Uri.parse(path).normalizePath().path;
     return path;
+  }
+
+  /// Matches internal SDK library directory names (`dart.xxx`) at the
+  /// beginning of a path segment.
+  ///
+  /// Captures:
+  /// - Group 1: the internal library dirName (e.g. `dart.io`, `dart.dom.html`,
+  ///   `dart._http`)
+  /// - The rest of the path follows after a `/` or end of string.
+  static final _internalSdkDirPattern = RegExp(r'^(dart\.[a-z_.]+)(/|$)');
+
+  /// Normalizes internal SDK library directory names in a path.
+  ///
+  /// Rewrites the first path segment when it matches `dart.xxx`:
+  /// - `dart.dom.xxx/...` -> `dart-xxx/...` (strip `.dom.` prefix)
+  /// - `dart._xxx/...` -> returns empty string (private SDK libraries have no
+  ///   generated pages; the caller should render as inline code)
+  /// - `dart.xxx/...` -> `dart-xxx/...` (replace first `.` with `-`)
+  @visibleForTesting
+  static String normalizeSdkLibraryPath(String path) {
+    final match = _internalSdkDirPattern.firstMatch(path);
+    if (match == null) return path;
+
+    final internalDir = match.group(1)!;
+    final hadSeparator = match.group(2) == '/';
+    final rest = path.substring(match.end);
+
+    // Private SDK libraries (dart._http, dart._internal) have no pages.
+    if (internalDir.startsWith('dart._')) return '';
+
+    String canonicalDir;
+    if (internalDir.startsWith('dart.dom.')) {
+      // `dart.dom.html` -> `dart-html`, `dart.dom.svg` -> `dart-svg`
+      canonicalDir = 'dart-${internalDir.substring('dart.dom.'.length)}';
+    } else {
+      // `dart.io` -> `dart-io`, `dart.async` -> `dart-async`
+      canonicalDir = 'dart-${internalDir.substring('dart.'.length)}';
+    }
+
+    if (rest.isNotEmpty) return '$canonicalDir/$rest';
+    if (hadSeparator) return '$canonicalDir/';
+    return canonicalDir;
   }
 
   /// Non-HTML marker for `{@inject-html}` placeholders.
@@ -391,6 +449,9 @@ class VitePressDocProcessor {
       (m) {
         final linkText = m[1]!;
         final path = _convertHtmlPathToVitePress(m[2]!);
+        // Empty path means the target has no generated page (e.g. private
+        // SDK libraries like dart._http). Render as inline code.
+        if (path.isEmpty) return '`$linkText`';
         return '[$linkText]($path)';
       },
     );
@@ -576,6 +637,7 @@ class VitePressDocProcessor {
         if (url != null) {
           final anchor = md.Element('a', [md.Text(safeText)]);
           anchor.attributes['href'] = url;
+          anchor.attributes['data-resolved'] = '';
           return anchor;
         }
 
@@ -601,6 +663,7 @@ class VitePressDocProcessor {
           if (href.isNotEmpty) {
             final anchor = md.Element('a', [md.Text(safeText)]);
             anchor.attributes['href'] = href;
+            anchor.attributes['data-resolved'] = '';
             return anchor;
           }
         }
@@ -728,17 +791,18 @@ class MarkdownRenderer implements md.NodeVisitor {
     r'<(/?[a-zA-Z][a-zA-Z0-9]*(?:-[a-zA-Z0-9]+)*)\b([^>]*)(/?)>',
   );
 
-  /// Escapes angle brackets in [content] using a bracket-counting approach.
+  /// Escapes angle brackets in [content] using a whitelist-based approach.
   ///
-  /// Generic type parameters (e.g. `Future<Map<String, dynamic>>`) are
-  /// escaped with backslashes (`\<...\>`) for correct VitePress rendering.
-  /// HTML-like tags (e.g. `<div>`, `</span>`) are escaped with entities
-  /// (`&lt;...&gt;`). Content inside backtick-delimited inline code is
-  /// left untouched.
+  /// The method scans character by character and for each `<`:
+  /// 1. **First** checks if it matches an HTML tag via [_htmlTagPattern].
+  ///    - If the tag is in [_safeHtmlTags] → pass through as raw HTML.
+  ///    - If the tag is NOT in the safe list → escape via `\<...\>`.
+  /// 2. If not an HTML tag, but `<` is followed by a letter or digit →
+  ///    treat as a generic type parameter. Uses bracket-counting to find
+  ///    the matching `>` and escapes all `<>` inside with backslashes.
+  /// 3. Otherwise → bare `<`, passed through as-is.
   ///
-  /// The function scans character by character, tracking nesting depth of
-  /// generic type brackets to correctly handle nested generics in a single
-  /// pass (avoiding the mixed-escaping bug from two sequential regex passes).
+  /// Content inside backtick-delimited inline code is left untouched.
   static String _escapeAngleBrackets(String content) {
     final buf = StringBuffer();
     final len = content.length;
@@ -758,15 +822,31 @@ class MarkdownRenderer implements md.NodeVisitor {
       }
 
       if (ch == '<') {
-        // Determine whether this `<` starts a generic type context.
-        // A generic type `<` is preceded by a word character (identifier end)
-        // and followed by an uppercase letter (type parameter start).
-        final isGeneric = i + 1 < len &&
-            _isUpperCase(content.codeUnitAt(i + 1)) &&
-            (i == 0 || _isWordChar(content.codeUnitAt(i - 1)));
+        // Step 1: Check if this `<` starts an HTML-like tag.
+        final tagMatch = _htmlTagPattern.matchAsPrefix(content, i);
+        if (tagMatch != null) {
+          // Extract the tag name, stripping leading `/` for closing tags.
+          final rawTag = tagMatch[1]!;
+          final tagName =
+              rawTag.startsWith('/') ? rawTag.substring(1) : rawTag;
+          if (_safeHtmlTags.contains(tagName.toLowerCase())) {
+            // Safe HTML tag — pass through unescaped.
+            buf.write(tagMatch[0]!);
+          } else {
+            // Unsafe/unknown HTML tag — escape with backslashes.
+            final inner = content.substring(i + 1, tagMatch.end - 1);
+            buf.write('\\<$inner\\>');
+          }
+          i = tagMatch.end;
+          continue;
+        }
 
-        if (isGeneric) {
-          // Scan through the generic bracket contents, tracking depth.
+        // Step 2: Not an HTML tag. Check if `<` is followed by a letter
+        // or digit, indicating a generic type parameter context
+        // (e.g. `Future<void>`, `List<int>`, `Map<String, dynamic>`,
+        // `an <Event>` in prose).
+        if (i + 1 < len && _isLetterOrDigit(content.codeUnitAt(i + 1))) {
+          // Use bracket-counting to find the matching `>`.
           buf.write(r'\<');
           i++;
           var depth = 1;
@@ -788,25 +868,7 @@ class MarkdownRenderer implements md.NodeVisitor {
           continue;
         }
 
-        // Not a generic -- check if it's an HTML-like tag.
-        final tagMatch = _htmlTagPattern.matchAsPrefix(content, i);
-        if (tagMatch != null) {
-          // Extract the tag name, stripping leading `/` for closing tags.
-          final rawTag = tagMatch[1]!;
-          final tagName =
-              rawTag.startsWith('/') ? rawTag.substring(1) : rawTag;
-          if (_safeHtmlTags.contains(tagName.toLowerCase())) {
-            // Safe HTML tag — pass through unescaped.
-            buf.write(tagMatch[0]!);
-          } else {
-            // Unsafe tag — escape with entities.
-            buf.write('&lt;${tagMatch[1]}${tagMatch[2]}${tagMatch[3]}&gt;');
-          }
-          i = tagMatch.end;
-          continue;
-        }
-
-        // Bare `<` that is neither generic nor HTML tag -- pass through.
+        // Step 3: Bare `<` (e.g. `a < b`, math) — pass through as-is.
         buf.write(ch);
         i++;
       } else {
@@ -818,15 +880,11 @@ class MarkdownRenderer implements md.NodeVisitor {
     return buf.toString();
   }
 
-  /// Returns `true` if [code] is an uppercase ASCII letter (A-Z).
-  static bool _isUpperCase(int code) => code >= 0x41 && code <= 0x5A;
-
-  /// Returns `true` if [code] is a word character: `[a-zA-Z0-9_]`.
-  static bool _isWordChar(int code) =>
+  /// Returns `true` if [code] is an ASCII letter (A-Z, a-z) or digit (0-9).
+  static bool _isLetterOrDigit(int code) =>
       (code >= 0x41 && code <= 0x5A) || // A-Z
       (code >= 0x61 && code <= 0x7A) || // a-z
-      (code >= 0x30 && code <= 0x39) || // 0-9
-      code == 0x5F; // _
+      (code >= 0x30 && code <= 0x39); // 0-9
 
   @override
   void visitText(md.Text text) {
@@ -945,7 +1003,11 @@ class MarkdownRenderer implements md.NodeVisitor {
 
       case 'a':
         // Links: `[text](href)`
-        _inLink = true;
+        // Only suppress angle bracket escaping for resolved bracket
+        // references (marked with `data-resolved` by _resolveLinkReference).
+        // Explicit markdown links like `[<intent-filter>](url)` still need
+        // escaping in their link text.
+        _inLink = element.attributes.containsKey('data-resolved');
         _writeToTarget('[');
         return true;
 

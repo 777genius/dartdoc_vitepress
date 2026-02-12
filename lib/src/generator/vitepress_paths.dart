@@ -53,6 +53,11 @@ class VitePressPathResolver {
   ///
   /// Must be called before any path resolution when documenting multiple
   /// packages. Detects dirName collisions and prefixes with package name.
+  ///
+  /// Also maps internal SDK library duplicates (e.g. `dart.io`) to their
+  /// canonical counterpart's directory name (e.g. `dart-io`), so that
+  /// cross-references using internal library names resolve to the correct
+  /// paths instead of producing broken `/api/dart.io/` URLs.
   void initFromPackageGraph(PackageGraph packageGraph) {
     _libraryDirNames.clear();
     _containerNames.clear();
@@ -76,6 +81,53 @@ class VitePressPathResolver {
         _libraryDirNames[library] = '${library.package.name}_$baseName';
       } else {
         _libraryDirNames[library] = baseName;
+      }
+    }
+
+    // Map internal SDK library duplicates to their canonical counterpart's
+    // directory name. The Dart SDK analyzer creates two Library objects per
+    // library: canonical (`dart:io` → dirName `dart-io`) and internal
+    // (`dart.io` → dirName `dart.io`). Doc comment cross-references often
+    // resolve to elements whose canonical library is the internal variant,
+    // producing broken paths like `/api/dart.io/` instead of `/api/dart-io/`.
+    //
+    // Build a name→dirName index of canonical libraries, then assign the
+    // canonical dirName to each internal duplicate.
+    final canonicalDirNames = <String, String>{};
+    for (final library in allLibraries) {
+      if (library.name.contains(':')) {
+        canonicalDirNames[library.name] = _libraryDirNames[library]!;
+      }
+    }
+
+    for (final package in packageGraph.localPackages) {
+      for (final library in package.libraries) {
+        // Skip libraries already mapped (canonical/public libraries).
+        if (_libraryDirNames.containsKey(library)) continue;
+
+        final name = library.name;
+        if (!name.startsWith('dart.')) continue;
+
+        // Heuristic 1: `dart.xxx` → `dart:xxx`
+        final directCanonical = 'dart:${name.substring('dart.'.length)}';
+        if (canonicalDirNames.containsKey(directCanonical)) {
+          _libraryDirNames[library] = canonicalDirNames[directCanonical]!;
+          continue;
+        }
+
+        // Heuristic 2: `dart.dom.xxx` → `dart:xxx`
+        if (name.startsWith('dart.dom.')) {
+          final domCanonical = 'dart:${name.substring('dart.dom.'.length)}';
+          if (canonicalDirNames.containsKey(domCanonical)) {
+            _libraryDirNames[library] = canonicalDirNames[domCanonical]!;
+            continue;
+          }
+        }
+
+        // No canonical counterpart (e.g. `dart._http`, `dart._internal`).
+        // Leave unmapped — _resolvedDirName() will fall back to library.dirName
+        // and _libraryDirName() will return null for non-local packages,
+        // causing the reference to render as inline code.
       }
     }
 

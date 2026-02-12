@@ -87,13 +87,16 @@ class _MarkdownPageBuilder {
     String? library,
   }) {
     _buffer.writeln('---');
-    // Quote the title to handle special characters like `<` and `:`.
-    _buffer.writeln('title: "${yamlEscape(title)}"');
+    // Escape angle brackets in title for valid Vue template compilation.
+    // VitePress processes frontmatter title through Vue's template compiler,
+    // so raw `<>` from generic types (e.g. `List<E>`) must be escaped to
+    // HTML entities. VitePress renders these correctly in sidebar and navbar.
+    final safeTitle =
+        title.replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+    _buffer.writeln('title: "${yamlEscape(safeTitle)}"');
     // Escape angle brackets in description for valid HTML meta tags.
     // VitePress inserts description into <meta name="description" content="...">,
     // so raw `<>` from generic types must be escaped to HTML entities.
-    // Title is NOT escaped because VitePress uses it in sidebar/navbar text
-    // where entities would render literally.
     final safeDescription =
         description.replaceAll('<', '&lt;').replaceAll('>', '&gt;');
     _buffer.writeln('description: "${yamlEscape(safeDescription)}"');

@@ -451,4 +451,106 @@ void main() {
       expect(result, contains('href="https://example.com"'));
     });
   });
+
+  group('VitePressDocProcessor.normalizeSdkLibraryPath', () {
+    test('passes through non-SDK paths unchanged', () {
+      expect(
+        VitePressDocProcessor.normalizeSdkLibraryPath('modularity_core/Binder'),
+        equals('modularity_core/Binder'),
+      );
+    });
+
+    test('passes through canonical SDK dirNames unchanged', () {
+      // Canonical dirNames use hyphens, not dots.
+      expect(
+        VitePressDocProcessor.normalizeSdkLibraryPath('dart-io/File'),
+        equals('dart-io/File'),
+      );
+    });
+
+    test('normalizes dart.io to dart-io', () {
+      expect(
+        VitePressDocProcessor.normalizeSdkLibraryPath('dart.io/File'),
+        equals('dart-io/File'),
+      );
+    });
+
+    test('normalizes dart.async to dart-async', () {
+      expect(
+        VitePressDocProcessor.normalizeSdkLibraryPath('dart.async/Stream'),
+        equals('dart-async/Stream'),
+      );
+    });
+
+    test('normalizes dart.core to dart-core', () {
+      expect(
+        VitePressDocProcessor.normalizeSdkLibraryPath('dart.core/int'),
+        equals('dart-core/int'),
+      );
+    });
+
+    test('normalizes dart.dom.html to dart-html', () {
+      expect(
+        VitePressDocProcessor.normalizeSdkLibraryPath(
+            'dart.dom.html/Element'),
+        equals('dart-html/Element'),
+      );
+    });
+
+    test('normalizes dart.dom.svg to dart-svg', () {
+      expect(
+        VitePressDocProcessor.normalizeSdkLibraryPath(
+            'dart.dom.svg/SvgElement'),
+        equals('dart-svg/SvgElement'),
+      );
+    });
+
+    test('returns empty string for dart._http (private library)', () {
+      expect(
+        VitePressDocProcessor.normalizeSdkLibraryPath(
+            'dart._http/HttpClient'),
+        equals(''),
+      );
+    });
+
+    test('returns empty string for dart._internal (private library)', () {
+      expect(
+        VitePressDocProcessor.normalizeSdkLibraryPath(
+            'dart._internal/Symbol'),
+        equals(''),
+      );
+    });
+
+    test('handles library-only path without trailing slash', () {
+      expect(
+        VitePressDocProcessor.normalizeSdkLibraryPath('dart.io'),
+        equals('dart-io'),
+      );
+    });
+
+    test('handles library-only path with trailing slash', () {
+      // The trailing slash is consumed by the regex match; the canonical
+      // form omits it (VitePress treats both equivalently).
+      expect(
+        VitePressDocProcessor.normalizeSdkLibraryPath('dart.io/'),
+        equals('dart-io/'),
+      );
+    });
+
+    test('preserves deep paths after library segment', () {
+      expect(
+        VitePressDocProcessor.normalizeSdkLibraryPath(
+            'dart.io/File/readAsString'),
+        equals('dart-io/File/readAsString'),
+      );
+    });
+
+    test('handles dart.collection correctly', () {
+      expect(
+        VitePressDocProcessor.normalizeSdkLibraryPath(
+            'dart.collection/HashMap'),
+        equals('dart-collection/HashMap'),
+      );
+    });
+  });
 }

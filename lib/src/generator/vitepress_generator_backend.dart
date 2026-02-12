@@ -536,6 +536,21 @@ class VitePressGeneratorBackend extends GeneratorBackend {
         }
       }
     }
+
+    // Remove empty subdirectories left after stale file deletion.
+    // Re-read children because files may have been deleted above.
+    if (!folder.exists) return;
+    for (final child in folder.getChildren()) {
+      if (child is Folder) {
+        try {
+          if (child.getChildren().isEmpty) {
+            child.delete();
+          }
+        } on FileSystemException {
+          // If we can't inspect or delete the directory, skip it silently.
+        }
+      }
+    }
   }
 
   /// Logs a summary of generation statistics.
