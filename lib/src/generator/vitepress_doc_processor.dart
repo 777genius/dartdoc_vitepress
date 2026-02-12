@@ -1022,10 +1022,11 @@ class MarkdownRenderer implements md.NodeVisitor {
           final codeChild = element.children!.first as md.Element;
           final language = _extractLanguage(codeChild);
           final codeIndent = _listDepth > 0 ? '  ' * _listDepth : '';
-          _writelnToBuffer('$codeIndent```$language');
+          final fence = _computeFence(codeChild);
+          _writelnToBuffer('$codeIndent$fence$language');
           _renderCodeBlockContent(codeChild, indent: codeIndent);
           _writelnToBuffer();
-          _writeToBuffer('$codeIndent```');
+          _writeToBuffer('$codeIndent$fence');
           _inCodeBlock = false;
           return false; // Don't visit children -- we already handled them.
         }
@@ -1454,6 +1455,28 @@ class MarkdownRenderer implements md.NodeVisitor {
     if (children == null || children.length != 1) return false;
     final child = children.first;
     return child is md.Element && child.tag == 'code';
+  }
+
+  /// Computes the minimum fence delimiter (backticks) needed for a code block
+  /// whose content may itself contain backtick fences.
+  ///
+  /// Scans the content for runs of consecutive backticks and returns a fence
+  /// that is at least one backtick longer than the longest run found, with a
+  /// minimum of 3 (the CommonMark standard).
+  String _computeFence(md.Element codeElement) {
+    final content = codeElement.textContent;
+    var maxRun = 0;
+    var currentRun = 0;
+    for (var i = 0; i < content.length; i++) {
+      if (content[i] == '`') {
+        currentRun++;
+        if (currentRun > maxRun) maxRun = currentRun;
+      } else {
+        currentRun = 0;
+      }
+    }
+    final needed = maxRun >= 3 ? maxRun + 1 : 3;
+    return '`' * needed;
   }
 
   /// Extracts the language identifier from a fenced code block's `<code>`

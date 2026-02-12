@@ -175,12 +175,12 @@ md.use(apiLinkerPlugin)
 
 A markdown-it plugin + Vue component that turns ` ```dartpad ` code fences into interactive playgrounds with syntax highlighting, a "Run" button, and a DartPad iframe — all without leaving the docs page.
 
-```markdown
-  ```dartpad height=400 mode=flutter
-  import 'package:flutter/material.dart';
-  void main() => runApp(const Text('Hello'));
-  ```
+````markdown
+```dartpad height=400 mode=flutter
+import 'package:flutter/material.dart';
+void main() => runApp(const Text('Hello'));
 ```
+````
 
 #### API Breadcrumbs
 

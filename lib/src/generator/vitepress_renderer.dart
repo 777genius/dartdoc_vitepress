@@ -155,19 +155,15 @@ class _MarkdownPageBuilder {
     String? library,
   }) {
     _buffer.writeln('---');
-    // Escape angle brackets in title for valid Vue template compilation.
-    // VitePress processes frontmatter title through Vue's template compiler,
-    // so raw `<>` from generic types (e.g. `List<E>`) must be escaped to
-    // HTML entities. VitePress renders these correctly in sidebar and navbar.
-    final safeTitle =
-        title.replaceAll('<', '&lt;').replaceAll('>', '&gt;');
-    _buffer.writeln('title: "${yamlEscape(safeTitle)}"');
-    // Escape angle brackets in description for valid HTML meta tags.
-    // VitePress inserts description into <meta name="description" content="...">,
-    // so raw `<>` from generic types must be escaped to HTML entities.
-    final safeDescription =
-        description.replaceAll('<', '&lt;').replaceAll('>', '&gt;');
-    _buffer.writeln('description: "${yamlEscape(safeDescription)}"');
+    // Frontmatter values are YAML strings, not Vue templates. VitePress
+    // stores them as plain JavaScript strings in the page data bundle.
+    // Raw `<>` from generic types (e.g. `List<E>`) are safe here because:
+    // - SSR: @unhead/vue properly HTML-encodes values in <title> and <meta>
+    // - SPA: document.title is set via JS (text property, not innerHTML)
+    // Using HTML entities (`&lt;`) would show literal `&lt;` in browser tabs
+    // during SPA navigation since JS text assignment doesn't decode entities.
+    _buffer.writeln('title: "${yamlEscape(title)}"');
+    _buffer.writeln('description: "${yamlEscape(description)}"');
     if (category != null) {
       _buffer.writeln('category: "${yamlEscape(category)}"');
     }
