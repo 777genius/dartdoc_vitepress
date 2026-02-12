@@ -3,6 +3,7 @@
 // BSD-style license that can be found in the LICENSE file.
 
 import 'package:dartdoc_vitepress/src/generator/vitepress_paths.dart';
+import 'package:dartdoc_vitepress/src/model/model.dart' show Library;
 import 'package:test/test.dart';
 
 void main() {
@@ -123,4 +124,48 @@ void main() {
           equals('prop-myfield'));
     });
   });
+
+  group('isInternalSdkLibrary', () {
+    test('detects private libraries with leading underscore', () {
+      final lib = _FakeLibrary('_internal_js_runtime');
+      expect(isInternalSdkLibrary(lib), isTrue);
+    });
+
+    test('detects private sub-libraries with ._ pattern', () {
+      expect(isInternalSdkLibrary(_FakeLibrary('dart._http')), isTrue);
+      expect(isInternalSdkLibrary(_FakeLibrary('dart._wasm')), isTrue);
+      expect(isInternalSdkLibrary(_FakeLibrary('dart2js._js_primitives')), isTrue);
+    });
+
+    test('detects known internal libraries by name', () {
+      expect(isInternalSdkLibrary(_FakeLibrary('rti')), isTrue);
+      expect(isInternalSdkLibrary(_FakeLibrary('vmservice_io')), isTrue);
+      expect(isInternalSdkLibrary(_FakeLibrary('metadata')), isTrue);
+      expect(isInternalSdkLibrary(_FakeLibrary('nativewrappers')), isTrue);
+      expect(isInternalSdkLibrary(_FakeLibrary('html_common')), isTrue);
+      expect(isInternalSdkLibrary(_FakeLibrary('dart2js_runtime_metrics')), isTrue);
+    });
+
+    test('returns false for canonical public libraries', () {
+      expect(isInternalSdkLibrary(_FakeLibrary('dart:core')), isFalse);
+      expect(isInternalSdkLibrary(_FakeLibrary('dart:io')), isFalse);
+      expect(isInternalSdkLibrary(_FakeLibrary('dart:ffi')), isFalse);
+    });
+
+    test('returns false for regular public libraries', () {
+      expect(isInternalSdkLibrary(_FakeLibrary('my_package')), isFalse);
+      expect(isInternalSdkLibrary(_FakeLibrary('collection')), isFalse);
+    });
+  });
+}
+
+/// Minimal fake Library for testing [isInternalSdkLibrary].
+class _FakeLibrary implements Library {
+  @override
+  final String name;
+
+  _FakeLibrary(this.name);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }

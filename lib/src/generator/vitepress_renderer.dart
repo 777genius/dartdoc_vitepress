@@ -19,6 +19,9 @@ import 'package:dartdoc_vitepress/src/model/container_modifiers.dart';
 import 'package:dartdoc_vitepress/src/model/model.dart';
 import 'package:meta/meta.dart';
 
+export 'package:dartdoc_vitepress/src/generator/vitepress_paths.dart'
+    show isDuplicateSdkLibrary, isInternalSdkLibrary;
+
 // ---------------------------------------------------------------------------
 // Generic name helpers (ADR-7).
 // ---------------------------------------------------------------------------
@@ -222,19 +225,26 @@ class _MarkdownPageBuilder {
     _buffer.writeln();
   }
 
-  /// Writes an h3 member heading with an anchor ID.
+  /// Writes an h3 member heading with an anchor ID and optional badges.
   void writeH3WithAnchor(
     String text, {
     required String anchor,
     bool deprecated = false,
+    List<String> badges = const [],
   }) {
     final escapedText = escapeGenerics(text);
+    final buf = StringBuffer('### ');
     if (deprecated) {
-      _buffer.writeln('### <Badge type="warning" text="deprecated" /> '
-          '~~$escapedText~~ {#$anchor}');
+      buf.write('<Badge type="warning" text="deprecated" /> ');
+      buf.write('~~$escapedText~~');
     } else {
-      _buffer.writeln('### $escapedText {#$anchor}');
+      buf.write(escapedText);
     }
+    for (final badge in badges) {
+      buf.write(' $badge');
+    }
+    buf.write(' {#$anchor}');
+    _buffer.writeln(buf.toString());
     _buffer.writeln();
   }
 
@@ -243,6 +253,13 @@ class _MarkdownPageBuilder {
     _buffer.writeln('```$language');
     _buffer.writeln(code);
     _buffer.writeln('```');
+    _buffer.writeln();
+  }
+
+  /// Writes a member signature as raw HTML with clickable type links.
+  void writeSignature(String htmlSignature) {
+    _buffer.writeln(
+        '<div class="member-signature"><pre><code>$htmlSignature</code></pre></div>');
     _buffer.writeln();
   }
 
@@ -349,6 +366,13 @@ class _MarkdownPageBuilder {
   String toString() => _buffer.toString();
 }
 
+/// Escapes special HTML characters in text for use inside HTML output.
+String _htmlEsc(String text) => text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
+
 // ---------------------------------------------------------------------------
 // Pre-compiled regular expressions (avoid re-creating on every call).
 // ---------------------------------------------------------------------------
@@ -377,6 +401,69 @@ List<String> _buildModifierBadges(InheritingContainer container) {
     if (modifier.hideIfPresent.any(modifiers.contains)) continue;
 
     badges.add('<Badge type="info" text="${modifier.displayName}" />');
+  }
+
+  return badges;
+}
+
+/// Maps built-in [Attribute] constants to VitePress Badge (type, text) pairs.
+///
+/// Only "feature" attributes (no setter, inherited, override, etc.) are shown;
+/// annotation attributes (like `@protected`) are rendered by [_renderAnnotations].
+final _memberBadgeMap = <Attribute, (String type, String text)>{
+  Attribute.noSetter: ('tip', 'no setter'),
+  Attribute.noGetter: ('tip', 'no getter'),
+  Attribute.getterSetterPair: ('tip', 'read / write'),
+  Attribute.inherited: ('info', 'inherited'),
+  Attribute.inheritedGetter: ('info', 'inherited-getter'),
+  Attribute.inheritedSetter: ('info', 'inherited-setter'),
+  Attribute.override_: ('info', 'override'),
+  Attribute.overrideGetter: ('info', 'override-getter'),
+  Attribute.overrideSetter: ('info', 'override-setter'),
+  Attribute.extended: ('info', 'extended'),
+  Attribute.late_: ('warning', 'late'),
+  Attribute.final_: ('tip', 'final'),
+  Attribute.covariant: ('info', 'covariant'),
+};
+
+/// Builds VitePress Badge strings for a member element's attributes.
+///
+/// Returns badges for properties (no setter, inherited, etc.), methods
+/// (inherited, override), and constructors (factory, const).
+List<String> _buildMemberBadges(ModelElement element) {
+  final badges = <String>[];
+
+  // Constructor-specific badges.
+  if (element is Constructor) {
+    if (element.isFactory) {
+      badges.add('<Badge type="tip" text="factory" />');
+    }
+    if (element.isConst) {
+      badges.add('<Badge type="tip" text="const" />');
+    }
+  }
+
+  // Method-specific badges.
+  if (element is Method) {
+    if (element.isInherited) {
+      badges.add('<Badge type="info" text="inherited" />');
+    }
+    if (element.attributes.contains(Attribute.override_)) {
+      badges.add('<Badge type="info" text="override" />');
+    }
+  }
+
+  // Field/property badges from attributes.
+  if (element is Field) {
+    // Sort attributes by sortGroup for consistent ordering.
+    final sortedAttrs = element.attributes.toList()
+      ..sort((a, b) => a.sortGroup.compareTo(b.sortGroup));
+    for (final attr in sortedAttrs) {
+      final badge = _memberBadgeMap[attr];
+      if (badge != null) {
+        badges.add('<Badge type="${badge.$1}" text="${badge.$2}" />');
+      }
+    }
   }
 
   return badges;
@@ -466,33 +553,157 @@ String _buildContainerDeclaration(InheritingContainer container) {
   return parts.join(' ');
 }
 
-/// Renders an [ElementType] as plain text, correctly expanding callable
-/// (function) types into their full signature (e.g. `T Function()`).
-///
-/// For non-callable types, falls back to [ElementType.nameWithGenericsPlain].
-/// This is necessary because [nameWithGenericsPlain] for [FunctionTypeElementType]
-/// returns only `Function` (the name), omitting the return type and parameters.
-String _renderTypePlain(ElementType type) {
+// ---------------------------------------------------------------------------
+// Plain-text signature helpers (kept for potential future use, e.g. RSS feeds,
+// search index generation, or fallback rendering without HTML).
+// ---------------------------------------------------------------------------
+
+// String _renderTypePlain(ElementType type) {
+//   if (type is Callable) {
+//     final buf = StringBuffer();
+//     buf.write(_renderTypePlain(type.returnType));
+//     buf.write(' ');
+//     buf.write(type.nameWithGenericsPlain);
+//     buf.write('(');
+//     buf.write(_buildCallableParameterList(type.parameters));
+//     buf.write(')');
+//     if (type.nullabilitySuffix.isNotEmpty) {
+//       return '($buf)${type.nullabilitySuffix}';
+//     }
+//     return buf.toString();
+//   }
+//   return type.nameWithGenericsPlain;
+// }
+//
+// String _buildCallableParameterList(List<Parameter> parameters) {
+//   if (parameters.isEmpty) return '';
+//   final parts = <String>[];
+//   var inOptionalPositional = false;
+//   var inNamed = false;
+//   for (final param in parameters) {
+//     final buf = StringBuffer();
+//     if (param.isOptionalPositional && !inOptionalPositional) {
+//       inOptionalPositional = true;
+//       buf.write('[');
+//     } else if (param.isNamed && !inNamed) {
+//       inNamed = true;
+//       buf.write('{');
+//     }
+//     if (param.isRequiredNamed) buf.write('required ');
+//     buf.write(_renderTypePlain(param.modelType));
+//     if (param.name.isNotEmpty) buf.write(' ${param.name}');
+//     final defaultValue = param.defaultValue;
+//     if (defaultValue != null && defaultValue.isNotEmpty) {
+//       buf.write(' = $defaultValue');
+//     }
+//     parts.add(buf.toString());
+//   }
+//   var result = parts.join(', ');
+//   if (inOptionalPositional) result += ']';
+//   if (inNamed) result += '}';
+//   return result;
+// }
+//
+// String _buildParameterSignature(List<Parameter> parameters) {
+//   if (parameters.isEmpty) return '()';
+//   final parts = <String>[];
+//   var inOptionalPositional = false;
+//   var inNamed = false;
+//   for (final param in parameters) {
+//     final buf = StringBuffer();
+//     if (param.isOptionalPositional && !inOptionalPositional) {
+//       inOptionalPositional = true;
+//       buf.write('[');
+//     } else if (param.isNamed && !inNamed) {
+//       inNamed = true;
+//       buf.write('{');
+//     }
+//     if (param.isRequiredNamed) buf.write('required ');
+//     buf.write(_renderTypePlain(param.modelType));
+//     if (param.name.isNotEmpty) buf.write(' ${param.name}');
+//     final defaultValue = param.defaultValue;
+//     if (defaultValue != null && defaultValue.isNotEmpty) {
+//       buf.write(' = $defaultValue');
+//     }
+//     parts.add(buf.toString());
+//   }
+//   var result = parts.join(', ');
+//   if (inOptionalPositional) result += ']';
+//   if (inNamed) result += '}';
+//   return '($result)';
+// }
+//
+// String _buildCallableSignature(ModelElement element) {
+//   final buf = StringBuffer();
+//   if (element is Method) {
+//     buf.write('${_renderTypePlain(element.modelType.returnType)} ');
+//   } else if (element is ModelFunctionTyped) {
+//     buf.write('${_renderTypePlain(element.modelType.returnType)} ');
+//   }
+//   buf.write(plainNameWithGenerics(element));
+//   buf.write(_buildParameterSignature(element.parameters));
+//   return buf.toString();
+// }
+//
+// String _buildConstructorSignature(Constructor constructor) {
+//   final buf = StringBuffer();
+//   if (constructor.isConst) buf.write('const ');
+//   if (constructor.isFactory) buf.write('factory ');
+//   buf.write(constructor.displayName);
+//   buf.write(_buildParameterSignature(constructor.parameters));
+//   return buf.toString();
+// }
+
+// ---------------------------------------------------------------------------
+// Linked rendering helpers (HTML with clickable type links).
+// ---------------------------------------------------------------------------
+
+/// Renders an [ElementType] as HTML with `<a>` links for locally documented
+/// types. Types without a local page (SDK types, type parameters, void,
+/// dynamic, Never) render as plain HTML-escaped text — no broken links.
+String _renderTypeLinked(ElementType type, VitePressPathResolver paths) {
+  // DefinedElementType (includes ParameterizedElementType, TypeParameterElementType)
+  if (type is DefinedElementType) {
+    final url = paths.urlFor(type.modelElement);
+    final name = _htmlEsc(type.name);
+    final buf = StringBuffer();
+
+    // Type name — link if we have a page, plain text otherwise
+    buf.write(
+        url != null ? '<a href="$url" class="type-link">$name</a>' : name);
+
+    // Type arguments (recursive)
+    final args = type.typeArguments.toList();
+    if (args.isNotEmpty) {
+      buf.write('&lt;');
+      buf.write(args.map((a) => _renderTypeLinked(a, paths)).join(', '));
+      buf.write('&gt;');
+    }
+
+    buf.write(_htmlEsc(type.nullabilitySuffix));
+    return buf.toString();
+  }
+
+  // Callable (Function types): ReturnType Function(params)
   if (type is Callable) {
     final buf = StringBuffer();
-    buf.write(_renderTypePlain(type.returnType));
-    buf.write(' ');
-    buf.write(type.nameWithGenericsPlain);
-    buf.write('(');
-    buf.write(_buildCallableParameterList(type.parameters));
+    buf.write(_renderTypeLinked(type.returnType, paths));
+    buf.write(' Function(');
+    buf.write(_buildLinkedCallableParamList(type.parameters, paths));
     buf.write(')');
     if (type.nullabilitySuffix.isNotEmpty) {
-      // Wrap in parens for nullable function types: `void Function()?`
-      return '($buf)${type.nullabilitySuffix}';
+      return '(${buf.toString()})${_htmlEsc(type.nullabilitySuffix)}';
     }
     return buf.toString();
   }
-  return type.nameWithGenericsPlain;
+
+  // UndefinedElementType (void, dynamic, Never) — plain text
+  return _htmlEsc(type.nameWithGenericsPlain);
 }
 
-/// Builds the inner parameter list for a callable type (no brackets, just
-/// comma-separated type+name pairs).
-String _buildCallableParameterList(List<Parameter> parameters) {
+/// Builds the inner parameter list for a callable type with linked types.
+String _buildLinkedCallableParamList(
+    List<Parameter> parameters, VitePressPathResolver paths) {
   if (parameters.isEmpty) return '';
 
   final parts = <String>[];
@@ -511,19 +722,17 @@ String _buildCallableParameterList(List<Parameter> parameters) {
     }
 
     if (param.isRequiredNamed) {
-      buf.write('required ');
+      buf.write('<span class="kw">required</span> ');
     }
 
-    buf.write(_renderTypePlain(param.modelType));
-    // Function type parameters in callable signatures often have no name,
-    // but if they do, include it.
+    buf.write(_renderTypeLinked(param.modelType, paths));
     if (param.name.isNotEmpty) {
-      buf.write(' ${param.name}');
+      buf.write(' ${_htmlEsc(param.name)}');
     }
 
     final defaultValue = param.defaultValue;
     if (defaultValue != null && defaultValue.isNotEmpty) {
-      buf.write(' = $defaultValue');
+      buf.write(' = ${_htmlEsc(defaultValue)}');
     }
 
     parts.add(buf.toString());
@@ -535,10 +744,9 @@ String _buildCallableParameterList(List<Parameter> parameters) {
   return result;
 }
 
-/// Builds the parameter signature string for an element.
-///
-/// Iterates parameters manually (NOT using `linkedParams` which produces HTML).
-String _buildParameterSignature(List<Parameter> parameters) {
+/// Builds a linked parameter signature string for an element.
+String _buildLinkedParameterSignature(
+    List<Parameter> parameters, VitePressPathResolver paths) {
   if (parameters.isEmpty) return '()';
 
   final parts = <String>[];
@@ -548,7 +756,6 @@ String _buildParameterSignature(List<Parameter> parameters) {
   for (final param in parameters) {
     final buf = StringBuffer();
 
-    // Opening brackets for optional/named parameters
     if (param.isOptionalPositional && !inOptionalPositional) {
       inOptionalPositional = true;
       buf.write('[');
@@ -557,21 +764,18 @@ String _buildParameterSignature(List<Parameter> parameters) {
       buf.write('{');
     }
 
-    // Required keyword for required named parameters
     if (param.isRequiredNamed) {
-      buf.write('required ');
+      buf.write('<span class="kw">required</span> ');
     }
 
-    // Type and name (use _renderTypePlain to expand callable types)
-    buf.write(_renderTypePlain(param.modelType));
+    buf.write(_renderTypeLinked(param.modelType, paths));
     if (param.name.isNotEmpty) {
-      buf.write(' ${param.name}');
+      buf.write(' ${_htmlEsc(param.name)}');
     }
 
-    // Default value
     final defaultValue = param.defaultValue;
     if (defaultValue != null && defaultValue.isNotEmpty) {
-      buf.write(' = $defaultValue');
+      buf.write(' = ${_htmlEsc(defaultValue)}');
     }
 
     parts.add(buf.toString());
@@ -579,44 +783,91 @@ String _buildParameterSignature(List<Parameter> parameters) {
 
   var result = parts.join(', ');
 
-  // Closing brackets
   if (inOptionalPositional) result += ']';
   if (inNamed) result += '}';
 
   return '($result)';
 }
 
-/// Builds a method/function signature line.
-String _buildCallableSignature(ModelElement element) {
+/// Builds a linked method/function signature as HTML.
+String _buildLinkedCallableSignature(
+    ModelElement element, VitePressPathResolver paths) {
   final buf = StringBuffer();
 
-  // Return type (for methods and functions)
   if (element is Method) {
-    buf.write('${_renderTypePlain(element.modelType.returnType)} ');
+    buf.write('${_renderTypeLinked(element.modelType.returnType, paths)} ');
   } else if (element is ModelFunctionTyped) {
-    buf.write('${_renderTypePlain(element.modelType.returnType)} ');
+    buf.write('${_renderTypeLinked(element.modelType.returnType, paths)} ');
   }
 
-  // Name with generics
-  buf.write(plainNameWithGenerics(element));
-
-  // Parameters
-  buf.write(_buildParameterSignature(element.parameters));
+  buf.write(_htmlEsc(plainNameWithGenerics(element)));
+  buf.write(_buildLinkedParameterSignature(element.parameters, paths));
 
   return buf.toString();
 }
 
-/// Builds a constructor signature line.
-String _buildConstructorSignature(Constructor constructor) {
+/// Builds a linked constructor signature as HTML.
+String _buildLinkedConstructorSignature(
+    Constructor constructor, VitePressPathResolver paths) {
   final buf = StringBuffer();
 
-  if (constructor.isConst) buf.write('const ');
-  if (constructor.isFactory) buf.write('factory ');
+  if (constructor.isConst) buf.write('<span class="kw">const</span> ');
+  if (constructor.isFactory) buf.write('<span class="kw">factory</span> ');
 
-  buf.write(constructor.displayName);
-  buf.write(_buildParameterSignature(constructor.parameters));
+  buf.write(_htmlEsc(constructor.displayName));
+  buf.write(_buildLinkedParameterSignature(constructor.parameters, paths));
 
   return buf.toString();
+}
+
+/// Builds a linked field/property signature as HTML.
+String _buildLinkedFieldSignature(
+    Field field, VitePressPathResolver paths) {
+  final sig = StringBuffer();
+  if (field.isConst) {
+    sig.write('<span class="kw">const</span> ');
+  } else if (field.isFinal) {
+    sig.write('<span class="kw">final</span> ');
+  }
+  if (field.isLate) {
+    sig.write('<span class="kw">late</span> ');
+  }
+
+  final linkedType = _renderTypeLinked(field.modelType, paths);
+  if (field.hasExplicitGetter && !field.hasExplicitSetter) {
+    sig.write('$linkedType <span class="kw">get</span> ${_htmlEsc(field.name)}');
+  } else if (field.hasExplicitSetter && !field.hasExplicitGetter) {
+    sig.write(
+        '<span class="kw">set</span> ${_htmlEsc(field.name)}($linkedType value)');
+  } else if (field.hasExplicitGetter && field.hasExplicitSetter) {
+    sig.write('$linkedType <span class="kw">get</span> ${_htmlEsc(field.name)}');
+  } else {
+    sig.write('$linkedType ${_htmlEsc(field.name)}');
+  }
+
+  if (field.isConst && field.hasConstantValueForDisplay) {
+    sig.write(' = ${_htmlEsc(field.constantValueBase)}');
+  }
+
+  return sig.toString();
+}
+
+/// Builds a linked top-level property/constant signature as HTML.
+String _buildLinkedPropertySignature(
+    TopLevelVariable prop, VitePressPathResolver paths) {
+  final sig = StringBuffer();
+  if (prop.isConst) {
+    sig.write('<span class="kw">const</span> ');
+  } else if (prop.isFinal) {
+    sig.write('<span class="kw">final</span> ');
+  }
+  sig.write('${_renderTypeLinked(prop.modelType, paths)} ${_htmlEsc(prop.name)}');
+
+  if (prop.isConst && prop.hasConstantValueForDisplay) {
+    sig.write(' = ${_htmlEsc(prop.constantValueBase)}');
+  }
+
+  return sig.toString();
 }
 
 /// Renders the documentation body for a member element.
@@ -858,6 +1109,7 @@ void _renderContainerMembers(
   _MarkdownPageBuilder builder,
   Container container,
   VitePressDocProcessor docs,
+  VitePressPathResolver paths,
 ) {
   // Track used anchors per page to deduplicate (e.g., multiple `toJS`
   // extension getters from different extensions on the same class).
@@ -873,7 +1125,7 @@ void _renderContainerMembers(
   if (container.hasPublicConstructors) {
     builder.writeH2('Constructors');
     for (final ctor in container.publicConstructorsSorted) {
-      _renderConstructorMember(builder, ctor, docs, usedAnchors);
+      _renderConstructorMember(builder, ctor, docs, usedAnchors, paths);
     }
   }
 
@@ -882,7 +1134,7 @@ void _renderContainerMembers(
   if (instanceFields.isNotEmpty) {
     builder.writeH2('Properties');
     for (final field in instanceFields) {
-      _renderFieldMember(builder, field, docs, usedAnchors);
+      _renderFieldMember(builder, field, docs, usedAnchors, paths);
     }
   }
 
@@ -891,7 +1143,7 @@ void _renderContainerMembers(
   if (instanceMethods.isNotEmpty) {
     builder.writeH2('Methods');
     for (final method in instanceMethods) {
-      _renderMethodMember(builder, method, docs, usedAnchors);
+      _renderMethodMember(builder, method, docs, usedAnchors, paths);
     }
   }
 
@@ -900,7 +1152,7 @@ void _renderContainerMembers(
   if (operators.isNotEmpty) {
     builder.writeH2('Operators');
     for (final op in operators) {
-      _renderMethodMember(builder, op, docs, usedAnchors);
+      _renderMethodMember(builder, op, docs, usedAnchors, paths);
     }
   }
 
@@ -909,7 +1161,7 @@ void _renderContainerMembers(
   if (staticFields.isNotEmpty) {
     builder.writeH2('Static Properties');
     for (final field in staticFields) {
-      _renderFieldMember(builder, field, docs, usedAnchors);
+      _renderFieldMember(builder, field, docs, usedAnchors, paths);
     }
   }
 
@@ -918,7 +1170,7 @@ void _renderContainerMembers(
   if (staticMethods.isNotEmpty) {
     builder.writeH2('Static Methods');
     for (final method in staticMethods) {
-      _renderMethodMember(builder, method, docs, usedAnchors);
+      _renderMethodMember(builder, method, docs, usedAnchors, paths);
     }
   }
 
@@ -927,7 +1179,7 @@ void _renderContainerMembers(
   if (constants.isNotEmpty) {
     builder.writeH2('Constants');
     for (final constant in constants) {
-      _renderFieldMember(builder, constant, docs, usedAnchors);
+      _renderFieldMember(builder, constant, docs, usedAnchors, paths);
     }
   }
 }
@@ -948,6 +1200,7 @@ void _renderConstructorMember(
   Constructor constructor,
   VitePressDocProcessor docs,
   Set<String> usedAnchors,
+  VitePressPathResolver paths,
 ) {
   final displayName = constructor.displayName;
   final anchor = _uniqueAnchor(_memberAnchor(constructor), usedAnchors);
@@ -956,9 +1209,10 @@ void _renderConstructorMember(
     '$displayName()',
     anchor: anchor,
     deprecated: constructor.isDeprecated,
+    badges: _buildMemberBadges(constructor),
   );
 
-  builder.writeCodeBlock(_buildConstructorSignature(constructor));
+  builder.writeSignature(_buildLinkedConstructorSignature(constructor, paths));
 
   _renderMemberDocumentation(builder, constructor, docs,
       memberAnchor: anchor);
@@ -970,6 +1224,7 @@ void _renderFieldMember(
   Field field,
   VitePressDocProcessor docs,
   Set<String> usedAnchors,
+  VitePressPathResolver paths,
 ) {
   final anchor = _uniqueAnchor(_memberAnchor(field), usedAnchors);
 
@@ -977,40 +1232,10 @@ void _renderFieldMember(
     field.name,
     anchor: anchor,
     deprecated: field.isDeprecated,
+    badges: _buildMemberBadges(field),
   );
 
-  // Build the field signature
-  final sig = StringBuffer();
-  if (field.isConst) {
-    sig.write('const ');
-  } else if (field.isFinal) {
-    sig.write('final ');
-  }
-  if (field.isLate) {
-    sig.write('late ');
-  }
-
-  // Show get/set for explicit getter/setter fields
-  final fieldTypePlain = _renderTypePlain(field.modelType);
-  if (field.hasExplicitGetter && !field.hasExplicitSetter) {
-    sig.write('$fieldTypePlain get ${field.name}');
-  } else if (field.hasExplicitSetter && !field.hasExplicitGetter) {
-    sig.write('set ${field.name}($fieldTypePlain value)');
-  } else if (field.hasExplicitGetter && field.hasExplicitSetter) {
-    sig.write('$fieldTypePlain get ${field.name}');
-  } else {
-    sig.write('$fieldTypePlain ${field.name}');
-  }
-
-  // Show constant value if available
-  if (field.isConst && field.hasConstantValueForDisplay) {
-    // Use constantValueBase (raw, before HTML linkification).
-    // Note: constantValueBase may contain HTML-escaped values for EnumFields;
-    // this is acceptable in code blocks where VitePress renders raw text.
-    sig.write(' = ${field.constantValueBase}');
-  }
-
-  builder.writeCodeBlock(sig.toString());
+  builder.writeSignature(_buildLinkedFieldSignature(field, paths));
 
   _renderMemberDocumentation(builder, field, docs, memberAnchor: anchor);
 }
@@ -1021,6 +1246,7 @@ void _renderMethodMember(
   Method method,
   VitePressDocProcessor docs,
   Set<String> usedAnchors,
+  VitePressPathResolver paths,
 ) {
   final anchor = _uniqueAnchor(_memberAnchor(method), usedAnchors);
 
@@ -1033,9 +1259,10 @@ void _renderMethodMember(
     displayName,
     anchor: anchor,
     deprecated: method.isDeprecated,
+    badges: _buildMemberBadges(method),
   );
 
-  builder.writeCodeBlock(_buildCallableSignature(method));
+  builder.writeSignature(_buildLinkedCallableSignature(method, paths));
 
   _renderMemberDocumentation(builder, method, docs, memberAnchor: anchor);
 }
@@ -1109,6 +1336,7 @@ String renderPackagePage(
       .where((lib) => lib.isPublic && lib.isDocumented)
       .where(_hasApiElements)
       .where((lib) => !isDuplicateSdkLibrary(lib, allLibs))
+      .where((lib) => !isInternalSdkLibrary(lib))
       .toList()
     ..sort((a, b) => a.name.compareTo(b.name));
 
@@ -1184,6 +1412,7 @@ String renderWorkspaceOverview(
         .where((lib) => lib.isPublic && lib.isDocumented)
         .where(_hasApiElements)
         .where((lib) => !isDuplicateSdkLibrary(lib, allPackageLibs))
+        .where((lib) => !isInternalSdkLibrary(lib))
         .toList()
       ..sort((a, b) => a.name.compareTo(b.name));
 
@@ -1224,6 +1453,8 @@ String renderLibraryPage(
     description: 'API documentation for the ${library.name} library',
     outline: [2, 3],
   );
+
+  builder.writeBreadcrumbComponent();
 
   builder.writeH1(library.name);
 
@@ -1368,7 +1599,7 @@ String renderClassPage(
   _renderAvailableExtensions(builder, clazz, paths);
 
   // All members
-  _renderContainerMembers(builder, clazz, docs);
+  _renderContainerMembers(builder, clazz, docs, paths);
 
   return builder.toString();
 }
@@ -1444,7 +1675,7 @@ String renderEnumPage(
   }
 
   // Standard container members
-  _renderContainerMembers(builder, enumeration, docs);
+  _renderContainerMembers(builder, enumeration, docs, paths);
 
   return builder.toString();
 }
@@ -1511,7 +1742,7 @@ String renderMixinPage(
   }
 
   // Standard container members
-  _renderContainerMembers(builder, mixin_, docs);
+  _renderContainerMembers(builder, mixin_, docs, paths);
 
   return builder.toString();
 }
@@ -1560,7 +1791,7 @@ String renderExtensionPage(
   _renderSourceLink(builder, ext);
 
   // All members
-  _renderContainerMembers(builder, ext, docs);
+  _renderContainerMembers(builder, ext, docs, paths);
 
   return builder.toString();
 }
@@ -1616,7 +1847,7 @@ String renderExtensionTypePage(
   _renderImplementors(builder, et, paths);
 
   // All members (including constructors via Constructable)
-  _renderContainerMembers(builder, et, docs);
+  _renderContainerMembers(builder, et, docs, paths);
 
   return builder.toString();
 }
@@ -1645,7 +1876,7 @@ String renderFunctionPage(
   builder.writeH1(nameWithGenerics, deprecated: func.isDeprecated);
 
   // Signature
-  builder.writeCodeBlock(_buildCallableSignature(func));
+  builder.writeSignature(_buildLinkedCallableSignature(func, paths));
 
   // Deprecation notice
   if (func.isDeprecated) {
@@ -1692,19 +1923,7 @@ String renderPropertyPage(
   builder.writeH1(prop.name, deprecated: prop.isDeprecated);
 
   // Signature
-  final sig = StringBuffer();
-  if (prop.isConst) {
-    sig.write('const ');
-  } else if (prop.isFinal) {
-    sig.write('final ');
-  }
-  sig.write('${_renderTypePlain(prop.modelType)} ${prop.name}');
-
-  if (prop.isConst && prop.hasConstantValueForDisplay) {
-    sig.write(' = ${prop.constantValueBase}');
-  }
-
-  builder.writeCodeBlock(sig.toString());
+  builder.writeSignature(_buildLinkedPropertySignature(prop, paths));
 
   // Deprecation notice
   if (prop.isDeprecated) {
@@ -1748,19 +1967,20 @@ String renderTypedefPage(
   builder.writeH1(nameWithGenerics, deprecated: td.isDeprecated);
 
   // Typedef declaration
-  final sig = StringBuffer('typedef $nameWithGenerics = ');
+  final sig = StringBuffer(
+      '<span class="kw">typedef</span> ${_htmlEsc(nameWithGenerics)} = ');
 
   if (td is FunctionTypedef) {
     // Function typedef: show the return type and parameter types
-    sig.write(_renderTypePlain(td.modelType.returnType));
+    sig.write(_renderTypeLinked(td.modelType.returnType, paths));
     sig.write(' Function');
-    sig.write(_buildParameterSignature(td.parameters));
+    sig.write(_buildLinkedParameterSignature(td.parameters, paths));
   } else {
     // Type alias (ClassTypedef, GeneralizedTypedef)
-    sig.write(_renderTypePlain(td.modelType));
+    sig.write(_renderTypeLinked(td.modelType, paths));
   }
 
-  builder.writeCodeBlock(sig.toString());
+  builder.writeSignature(sig.toString());
 
   // Deprecation notice
   if (td.isDeprecated) {
@@ -1949,48 +2169,6 @@ String _buildExtensionTypeDeclaration(ExtensionType et) {
   }
 
   return parts.join(' ');
-}
-
-/// Returns `true` if [lib] is a duplicate internal SDK library (e.g.
-/// `dart.collection`) that should be filtered out because a canonical
-/// `dart:xxx` version already exists in [allLibraries].
-///
-/// The Dart SDK analyzer creates two Library objects for the same library:
-/// - Canonical: `dart:collection` (directory `dart-collection/`)
-/// - Internal:  `dart.collection` (directory `dart.collection/`)
-///
-/// Not all `dart.xxx` libraries have a canonical counterpart (e.g.
-/// `dart.dom.svg`, `dart.mirrors`) -- those must be kept.
-///
-/// Mapping heuristics:
-/// 1. `dart.xxx` -> `dart:xxx` (direct replacement of first `.` with `:`)
-/// 2. `dart.dom.html` -> `dart:html` (strip `.dom.` prefix)
-bool isDuplicateSdkLibrary(Library lib, Iterable<Library> allLibraries) {
-  final name = lib.name;
-
-  // Canonical libraries (containing `:`) are never duplicates.
-  if (!name.contains('.') || name.contains(':')) return false;
-
-  // Only handle `dart.xxx` prefixed names.
-  if (!name.startsWith('dart.')) return false;
-
-  // Build the set of canonical library names for fast lookup.
-  final canonicalNames = <String>{
-    for (final l in allLibraries)
-      if (l.name.contains(':')) l.name,
-  };
-
-  // Heuristic 1: direct mapping `dart.xxx` -> `dart:xxx`.
-  final directCanonical = 'dart:${name.substring('dart.'.length)}';
-  if (canonicalNames.contains(directCanonical)) return true;
-
-  // Heuristic 2: `dart.dom.xxx` -> `dart:xxx` (strip `.dom.`).
-  if (name.startsWith('dart.dom.')) {
-    final domCanonical = 'dart:${name.substring('dart.dom.'.length)}';
-    if (canonicalNames.contains(domCanonical)) return true;
-  }
-
-  return false;
 }
 
 /// Returns `true` if the library has any public API elements (classes,

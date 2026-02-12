@@ -3,8 +3,6 @@
 // BSD-style license that can be found in the LICENSE file.
 
 import 'package:dartdoc_vitepress/src/generator/vitepress_paths.dart';
-import 'package:dartdoc_vitepress/src/generator/vitepress_renderer.dart'
-    show isDuplicateSdkLibrary;
 import 'package:dartdoc_vitepress/src/model/model.dart';
 
 /// Generates the `.vitepress/generated/api-sidebar.ts` TypeScript file that
@@ -72,6 +70,7 @@ class VitePressSidebarGenerator {
       // Filter out duplicate internal SDK libraries.
       final libraries = allPkgLibs
           .where((l) => !isDuplicateSdkLibrary(l, allPkgLibs))
+          .where((l) => !isInternalSdkLibrary(l))
           .toList();
       if (libraries.isEmpty) continue;
 
@@ -164,6 +163,8 @@ class VitePressSidebarGenerator {
         if (_countLibraryElements(library) == 0) continue;
         // Skip duplicate internal SDK libraries (e.g. `dart.collection`).
         if (isDuplicateSdkLibrary(library, allPackageLibs)) continue;
+        // Skip internal SDK libraries (e.g. `dart._internal`, `rti`).
+        if (isInternalSdkLibrary(library)) continue;
         final dirName = paths.dirNameFor(library);
         final base = '/api/$dirName/';
         buf.writeln("  '${_escapeTs(base)}': [");
@@ -179,6 +180,7 @@ class VitePressSidebarGenerator {
       // Filter out duplicate internal SDK libraries for the overview sidebar.
       final libraries = allPkgLibs
           .where((l) => !isDuplicateSdkLibrary(l, allPkgLibs))
+          .where((l) => !isInternalSdkLibrary(l))
           .toList();
       if (libraries.isEmpty) continue;
 
@@ -286,6 +288,7 @@ class VitePressSidebarGenerator {
       final libs = category.publicLibrariesSorted
           .where((l) => _countLibraryElements(l) > 0)
           .where((l) => !isDuplicateSdkLibrary(l, allLibraries))
+          .where((l) => !isInternalSdkLibrary(l))
           .toList()
         ..sort((a, b) => a.name.compareTo(b.name));
       categorizedLibs.addAll(category.publicLibrariesSorted);
@@ -333,6 +336,7 @@ class VitePressSidebarGenerator {
         .where((l) => !categorizedLibs.contains(l))
         .where((l) => _countLibraryElements(l) > 0)
         .where((l) => !isDuplicateSdkLibrary(l, allLibraries))
+        .where((l) => !isInternalSdkLibrary(l))
         .toList()
       ..sort((a, b) => a.name.compareTo(b.name));
 

@@ -73,21 +73,25 @@ class VitePressPathResolver {
     _nameBasedDirNames.clear();
     _containerNames.clear();
 
-    // Collect all (library, dirName) pairs.
+    // Collect all (library, dirName) pairs. Normalize dots to hyphens for
+    // SDK-style library names (e.g. `dart.dom.svg` → `dart-dom-svg`) to
+    // match the convention used by canonical `dart:xxx` libraries.
+    // Non-SDK library names (e.g. `class_modifiers.dart`) keep their dots.
     final allLibraries = <Library>[];
     final dirNameCounts = <String, int>{};
 
     for (final package in packageGraph.localPackages) {
       for (final library in package.publicLibrariesSorted) {
         allLibraries.add(library);
-        dirNameCounts[library.dirName] =
-            (dirNameCounts[library.dirName] ?? 0) + 1;
+        final normalized = _normalizeDots(library.dirName);
+        dirNameCounts[normalized] =
+            (dirNameCounts[normalized] ?? 0) + 1;
       }
     }
 
     // Assign unique dir names: prefix with package name only on collision.
     for (final library in allLibraries) {
-      final baseName = library.dirName;
+      final baseName = _normalizeDots(library.dirName);
       if (dirNameCounts[baseName]! > 1) {
         _libraryDirNames[library] = '${library.package.name}_$baseName';
       } else {
@@ -206,6 +210,7 @@ class VitePressPathResolver {
     }
 
     if (element is Library) {
+      if (isInternalSdkLibrary(element)) return null;
       return 'api/${_resolvedDirName(element)}/index.md';
     }
 
@@ -222,6 +227,7 @@ class VitePressPathResolver {
 
     // Container-level and top-level elements get their own pages.
     if (element is ModelElement) {
+      if (!element.isPublic) return null;
       final dirName = _libraryDirName(element);
       if (dirName == null) return null;
       final fileName = _safeFileName(element.name, element);
@@ -254,6 +260,7 @@ class VitePressPathResolver {
     }
 
     if (element is Library) {
+      if (isInternalSdkLibrary(element)) return null;
       return '/api/${_resolvedDirName(element)}/';
     }
 
@@ -273,6 +280,7 @@ class VitePressPathResolver {
 
     // Container-level and top-level elements.
     if (element is ModelElement) {
+      if (!element.isPublic) return null;
       final dirName = _libraryDirName(element);
       if (dirName == null) return null;
       final fileName = _safeFileName(element.name, element);
@@ -387,6 +395,7 @@ class VitePressPathResolver {
       if (element.package.documentedWhere != DocumentLocation.local) {
         return null;
       }
+      if (isInternalSdkLibrary(element)) return null;
       return _resolvedDirName(element);
     }
     if (element is ModelElement) {
@@ -395,6 +404,7 @@ class VitePressPathResolver {
       if (lib.package.documentedWhere != DocumentLocation.local) {
         return null;
       }
+      if (isInternalSdkLibrary(lib)) return null;
       return _resolvedDirName(lib);
     }
     return null;
@@ -411,7 +421,7 @@ class VitePressPathResolver {
   String _resolvedDirName(Library library) {
     return _libraryDirNames[library] ??
         _nameBasedDirNames[library.name] ??
-        library.dirName;
+        _normalizeDots(library.dirName);
   }
 
   /// Returns a safe file name for an element.
@@ -542,6 +552,18 @@ class VitePressPathResolver {
     return name.substring(0, angleBracketIndex);
   }
 
+  /// Normalizes dots to hyphens in SDK-style library directory names.
+  ///
+  /// Only affects names starting with `dart.` (SDK namespace separators like
+  /// `dart.dom.svg` → `dart-dom-svg`). Non-SDK library names (e.g.
+  /// `class_modifiers.dart`) are returned unchanged.
+  static String _normalizeDots(String dirName) {
+    if (dirName.startsWith('dart.')) {
+      return dirName.replaceAll('.', '-');
+    }
+    return dirName;
+  }
+
   /// Sanitizes a string for use as an anchor ID.
   ///
   /// Replaces non-alphanumeric characters with hyphens and lowercases.
@@ -552,4 +574,74 @@ class VitePressPathResolver {
         .replaceAll(_leadTrailDash, '')
         .toLowerCase();
   }
+}
+
+/// Returns `true` if the library is a dot-prefixed SDK duplicate that has a
+/// canonical colon-prefixed counterpart (e.g. `dart.io` → `dart:io`).
+///
+/// These internal library objects are created by the Dart SDK analyzer alongside
+/// the canonical versions. They contain no unique content and should be
+/// filtered out to avoid duplicate sidebar entries and broken paths.
+///
+/// Libraries that start with `dart.` but have NO canonical counterpart
+/// (e.g. `dart._wasm`, `dart.dom.svg`, `dart.mirrors`) -- those must be kept.
+///
+/// Mapping heuristics:
+/// 1. `dart.xxx` -> `dart:xxx` (direct replacement of first `.` with `:`)
+/// 2. `dart.dom.html` -> `dart:html` (strip `.dom.` prefix)
+bool isDuplicateSdkLibrary(Library lib, Iterable<Library> allLibraries) {
+  final name = lib.name;
+
+  // Canonical libraries (containing `:`) are never duplicates.
+  if (!name.contains('.') || name.contains(':')) return false;
+
+  // Only handle `dart.xxx` prefixed names.
+  if (!name.startsWith('dart.')) return false;
+
+  // Build the set of canonical library names for fast lookup.
+  final canonicalNames = <String>{
+    for (final l in allLibraries)
+      if (l.name.contains(':')) l.name,
+  };
+
+  // Heuristic 1: direct mapping `dart.xxx` -> `dart:xxx`.
+  final directCanonical = 'dart:${name.substring('dart.'.length)}';
+  if (canonicalNames.contains(directCanonical)) return true;
+
+  // Heuristic 2: `dart.dom.xxx` -> `dart:xxx` (strip `.dom.`).
+  if (name.startsWith('dart.dom.')) {
+    final domCanonical = 'dart:${name.substring('dart.dom.'.length)}';
+    if (canonicalNames.contains(domCanonical)) return true;
+  }
+
+  return false;
+}
+
+/// Returns `true` if the library is an internal SDK or runtime library
+/// that should not appear in public API documentation.
+///
+/// These libraries pass dartdoc's `isPublic && isDocumented` checks but are
+/// not intended for external use. The official api.dart.dev excludes them.
+///
+/// Detected patterns:
+/// - Names starting with `_` (private: `_internal_js_runtime_*`)
+/// - Names containing `._` (private sub-library: `dart._http`, `dart2js._js_primitives`)
+/// - Known SDK/compiler runtime libraries without underscore prefix
+bool isInternalSdkLibrary(Library lib) {
+  final name = lib.name;
+  // Private libraries (Dart convention: leading underscore).
+  if (name.startsWith('_')) return true;
+  // Private sub-libraries (e.g., dart._http, dart2js._js_primitives).
+  if (name.contains('._')) return true;
+  // Known SDK/compiler internal libraries without underscore prefix.
+  const internalNames = {
+    'rti',
+    'vmservice_io',
+    'metadata',
+    'nativewrappers',
+    'html_common',
+    'dart2js_runtime_metrics',
+  };
+  if (internalNames.contains(name)) return true;
+  return false;
 }
