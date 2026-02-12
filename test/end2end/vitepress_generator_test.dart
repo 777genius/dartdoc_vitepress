@@ -623,7 +623,9 @@ void main() {
 
       test('generic class declaration shows type parameters', () {
         var content = _readOutput(outDir, 'api/fake/HasGenerics.md');
-        expect(content, contains('class HasGenerics<X, Y, Z>'));
+        // Linked declaration uses HTML with kw spans and &lt;/&gt;
+        expect(content, contains('<span class="kw">class</span>'));
+        expect(content, contains('<span class="fn">HasGenerics</span>'));
       });
 
       test('generic methods preserve type parameters in return type', () {
@@ -638,7 +640,10 @@ void main() {
       test('generic extension heading and declaration', () {
         var content = _readOutput(outDir, 'api/ex/FancyList.md');
         expect(content, contains(r'# FancyList\<Z\>'));
-        expect(content, contains('extension FancyList<Z> on List<Z>'));
+        // Linked declaration uses HTML with type-link for List
+        expect(content, contains('<span class="kw">extension</span>'));
+        expect(content, contains('<span class="fn">FancyList</span>'));
+        expect(content, contains('<span class="kw">on</span>'));
       });
 
       test('extension with static methods has Static Methods section', () {
@@ -792,13 +797,15 @@ void main() {
 
       test('class extending generic base shows full type', () {
         var content = _readOutput(outDir, 'api/fake/SpecialList.md');
-        expect(content, contains('class SpecialList<E> extends ListBase<E>'));
+        // Linked declaration with kw spans and type-link for ListBase
+        expect(content, contains('<span class="fn">SpecialList</span>'));
+        expect(content, contains('<span class="kw">extends</span>'));
       });
 
       test('class extending concrete base shows extends', () {
         var content = _readOutput(outDir, 'api/fake/ExtraSpecialList.md');
-        expect(
-            content, contains('class ExtraSpecialList<E> extends SpecialList'));
+        expect(content, contains('<span class="fn">ExtraSpecialList</span>'));
+        expect(content, contains('<span class="kw">extends</span>'));
       });
 
       // -- Operator reference in documentation --------------------------------
@@ -857,10 +864,9 @@ void main() {
       test('class extending private base shows private name in declaration',
           () {
         var content = _readOutput(outDir, 'api/fake/InheritingClassOne.md');
-        expect(
-            content,
-            contains(
-                'class InheritingClassOne extends _PrivateClassDefiningSomething'));
+        // Linked declaration: private base type rendered as unlinked span
+        expect(content, contains('<span class="fn">InheritingClassOne</span>'));
+        expect(content, contains('<span class="kw">extends</span>'));
       });
 
       // -- Multiple libraries in sidebar -------------------------------------
@@ -995,11 +1001,12 @@ void main() {
         expect(content, contains('operator +'));
       });
 
-      test('container declaration still uses dart code block', () {
-        // The class/enum/mixin declaration should remain in ```dart
+      test('container declaration uses linked HTML signature block', () {
+        // Class declarations now use member-signature HTML with type links
         var content = _readOutput(outDir, 'api/ex/Apple.md');
-        expect(content, contains('```dart'));
-        expect(content, contains('class Apple'));
+        expect(content, contains('class="member-signature"'));
+        expect(content, contains('<span class="kw">class</span>'));
+        expect(content, contains('<span class="fn">Apple</span>'));
       });
 
       test('field property signature uses member-signature', () {
@@ -1031,12 +1038,12 @@ void main() {
         expect(content, contains('<span class="kw">const</span>'));
       });
 
-      test('generic class extends shows base type in declaration', () {
-        // SpecialList<E> extends ListBase<E> — declaration in ```dart
+      test('generic class extends shows base type in linked declaration', () {
+        // SpecialList<E> extends ListBase<E> — declaration in linked HTML
         var content = _readOutput(outDir, 'api/fake/SpecialList.md');
-        // Declaration stays in code block
-        expect(content, contains('```dart'));
-        expect(content, contains('class SpecialList<E> extends ListBase<E>'));
+        expect(content, contains('class="member-signature"'));
+        expect(content, contains('<span class="fn">SpecialList</span>'));
+        expect(content, contains('<span class="kw">extends</span>'));
       });
 
       test('typedef signature uses member-signature with type-link', () {
@@ -1087,6 +1094,83 @@ void main() {
         var content = _readOutput(outDir, 'api/fake/index.md');
         // HasGenerics<X, Y, Z> should have escaped angle brackets in links
         expect(content, contains(r'HasGenerics\<X, Y, Z\>'));
+      });
+
+      // -- Inheritance chain (P0) -------------------------------------------
+
+      test('subclass page has inheritance chain', () {
+        var content =
+            _readOutput(outDir, 'api/override_class/BoxConstraints.md');
+        expect(content, contains(':::info Inheritance'));
+        expect(content, contains('Object'));
+        expect(content, contains('→'));
+        expect(content, contains('Constraints'));
+        expect(content, contains('**BoxConstraints**'));
+      });
+
+      test('root class has no inheritance chain', () {
+        // Apple has no superclass (extends Object directly) — no chain shown
+        var content = _readOutput(outDir, 'api/ex/Apple.md');
+        expect(content, isNot(contains(':::info Inheritance')));
+      });
+
+      // -- Implemented types (P0) -------------------------------------------
+
+      test('class implementing interfaces has Implemented types block', () {
+        // Dog implements Cat, E
+        var content = _readOutput(outDir, 'api/ex/Dog.md');
+        expect(content, contains(':::info Implemented types'));
+      });
+
+      test('class without interfaces has no Implemented types block', () {
+        var content = _readOutput(outDir, 'api/ex/Apple.md');
+        expect(content, isNot(contains(':::info Implemented types')));
+      });
+
+      // -- Mixed-in types (P0) ----------------------------------------------
+
+      test('class with mixin has Mixed-in types block', () {
+        // LongFirstLine with MixMeIn
+        var content = _readOutput(outDir, 'api/fake/LongFirstLine.md');
+        expect(content, contains(':::info Mixed-in types'));
+      });
+
+      // -- Getter/setter separate docs (P1) ---------------------------------
+
+      test('property with both getter and setter docs shows separate sections',
+          () {
+        var content =
+            _readOutput(outDir, 'api/fake/WithGetterAndSetter.md');
+        expect(content, contains('**getter:**'));
+        expect(content, contains('**setter:**'));
+        expect(content, contains('Returns a length'));
+        expect(content, contains('Sets the length'));
+      });
+
+      // -- Extension member attribution (P1) --------------------------------
+
+      test('extension-provided method has extension attribution', () {
+        // Apple has method s() from AppleExtension
+        var content = _readOutput(outDir, 'api/ex/Apple.md');
+        // Should match api.dart.dev format: "Available on X, provided by the Y extension"
+        expect(content, contains('*Available on'));
+        expect(content, contains('provided by the'));
+        expect(content, contains('AppleExtension'));
+        expect(content, contains('extension*'));
+      });
+
+      test('extension-provided member has extension badge tag', () {
+        var content = _readOutput(outDir, 'api/ex/Apple.md');
+        expect(content, contains('<Badge type="info" text="extension" />'));
+      });
+
+      // -- Source code details (P2) -----------------------------------------
+
+      test('member has collapsible source code block', () {
+        // includeSource defaults to true, so source code should appear
+        var content = _readOutput(outDir, 'api/ex/Apple.md');
+        expect(content, contains(':::details Implementation'));
+        expect(content, contains('```dart'));
       });
     });
 
@@ -1156,50 +1240,59 @@ void main() {
 
       test('base class shows base modifier', () {
         var content = _readOutput(outDir, 'api/class_modifiers.dart/B.md');
-        expect(content, contains('base class'));
+        expect(content, contains('<span class="kw">base</span>'));
+        expect(content, contains('<span class="kw">class</span>'));
       });
 
       test('interface class shows interface modifier', () {
         var content = _readOutput(outDir, 'api/class_modifiers.dart/C.md');
-        expect(content, contains('interface class'));
+        expect(content, contains('<span class="kw">interface</span>'));
+        expect(content, contains('<span class="kw">class</span>'));
       });
 
       test('final class shows final modifier', () {
         var content = _readOutput(outDir, 'api/class_modifiers.dart/D.md');
-        expect(content, contains('final class'));
+        expect(content, contains('<span class="kw">final</span>'));
+        expect(content, contains('<span class="kw">class</span>'));
       });
 
       test('sealed class shows sealed modifier', () {
         var content = _readOutput(outDir, 'api/class_modifiers.dart/E.md');
-        expect(content, contains('sealed class'));
+        expect(content, contains('<span class="kw">sealed</span>'));
+        expect(content, contains('<span class="kw">class</span>'));
       });
 
       test('abstract base class shows combined modifiers', () {
         var content = _readOutput(outDir, 'api/class_modifiers.dart/G.md');
-        expect(content, contains('abstract'));
-        expect(content, contains('base class'));
+        expect(content, contains('<span class="kw">abstract</span>'));
+        expect(content, contains('<span class="kw">base</span>'));
+        expect(content, contains('<span class="kw">class</span>'));
       });
 
       test('abstract interface class shows combined modifiers', () {
         var content = _readOutput(outDir, 'api/class_modifiers.dart/H.md');
-        expect(content, contains('abstract'));
-        expect(content, contains('interface class'));
+        expect(content, contains('<span class="kw">abstract</span>'));
+        expect(content, contains('<span class="kw">interface</span>'));
+        expect(content, contains('<span class="kw">class</span>'));
       });
 
       test('abstract final class shows combined modifiers', () {
         var content = _readOutput(outDir, 'api/class_modifiers.dart/I.md');
-        expect(content, contains('abstract'));
-        expect(content, contains('final class'));
+        expect(content, contains('<span class="kw">abstract</span>'));
+        expect(content, contains('<span class="kw">final</span>'));
+        expect(content, contains('<span class="kw">class</span>'));
       });
 
       test('mixin class shows mixin class modifier', () {
         var content = _readOutput(outDir, 'api/class_modifiers.dart/J.md');
-        expect(content, contains('mixin class'));
+        expect(content, contains('<span class="kw">mixin</span>'));
+        expect(content, contains('<span class="kw">class</span>'));
       });
 
       test('base mixin shows base mixin modifier', () {
         var content = _readOutput(outDir, 'api/class_modifiers.dart/O.md');
-        expect(content, contains('base mixin'));
+        expect(content, contains('<span class="kw">base</span>'));
+        expect(content, contains('<span class="kw">mixin</span>'));
       });
 
       // -- Modifier badges in headings -----------------------------------------

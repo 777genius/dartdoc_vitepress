@@ -373,6 +373,22 @@ String _htmlEsc(String text) => text
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;');
 
+/// Decodes common HTML entities back to plain text.
+///
+/// Source code from the dartdoc model may contain HTML entities (e.g.
+/// `&lt;`, `&gt;`) from the analyzer's HTML-escape pipeline. These must
+/// be decoded before embedding in markdown code fences.
+String _htmlUnescape(String text) => text
+    .replaceAll('&lt;', '<')
+    .replaceAll('&#60;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&#62;', '>')
+    .replaceAll('&amp;', '&')
+    .replaceAll('&#38;', '&')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&#34;', '"')
+    .replaceAll('&#39;', "'");
+
 // ---------------------------------------------------------------------------
 // Pre-compiled regular expressions (avoid re-creating on every call).
 // ---------------------------------------------------------------------------
@@ -451,10 +467,16 @@ List<String> _buildMemberBadges(ModelElement element) {
     if (element.attributes.contains(Attribute.override_)) {
       badges.add('<Badge type="info" text="override" />');
     }
+    if (element.isProvidedByExtension) {
+      badges.add('<Badge type="info" text="extension" />');
+    }
   }
 
   // Field/property badges from attributes.
   if (element is Field) {
+    if (element.isProvidedByExtension) {
+      badges.add('<Badge type="info" text="extension" />');
+    }
     // Sort attributes by sortGroup for consistent ordering.
     final sortedAttrs = element.attributes.toList()
       ..sort((a, b) => a.sortGroup.compareTo(b.sortGroup));
@@ -498,59 +520,182 @@ String _extractDeprecationMessage(ModelElement element) {
   return '';
 }
 
-/// Builds the Dart declaration line for a container type
-/// (class/enum/mixin/extension type).
-///
-/// Renders Dart 3 modifiers from `containerModifiers`, plus `extends`,
-/// `implements`, and `with` clauses.
-String _buildContainerDeclaration(InheritingContainer container) {
-  final parts = <String>[];
+// Plain-text container declaration (kept for potential future use, e.g. RSS,
+// search index). Linked version below is used for rendering.
+//
+// String _buildContainerDeclaration(InheritingContainer container) { ... }
 
-  // Render modifiers (sealed, abstract, base, interface, final, mixin)
+/// Builds linked HTML container declaration (class/enum) with clickable types.
+String _buildLinkedContainerDeclaration(
+    InheritingContainer container, VitePressPathResolver paths) {
+  final buf = StringBuffer();
+
+  // Modifiers as keyword spans
   for (final modifier in container.containerModifiers) {
-    // Skip 'abstract' if 'sealed' is present (sealed implies abstract)
     if (modifier == ContainerModifier.abstract &&
         container.containerModifiers.contains(ContainerModifier.sealed)) {
       continue;
     }
-    parts.add(modifier.displayName);
+    buf.write('<span class="kw">${_htmlEsc(modifier.displayName)}</span> ');
   }
 
-  // Add the kind keyword (Mixin and ExtensionType use dedicated declaration
-  // builders, so only Class and Enum are handled here).
+  // Kind keyword
   if (container is Class) {
-    parts.add('class');
+    buf.write('<span class="kw">class</span> ');
   } else if (container is Enum) {
-    parts.add('enum');
+    buf.write('<span class="kw">enum</span> ');
   }
 
-  // Add name with generics (unescaped -- this goes inside a code block)
-  parts.add(plainNameWithGenerics(container));
+  // Name
+  buf.write('<span class="fn">${_htmlEsc(container.name)}</span>');
+  // Type parameters
+  if (container.typeParameters.isNotEmpty) {
+    buf.write('&lt;');
+    buf.write(container.typeParameters.map((tp) {
+      final tpBuf = StringBuffer(_htmlEsc(tp.element.name!));
+      if (tp.boundType != null) {
+        tpBuf.write(' <span class="kw">extends</span> ');
+        tpBuf.write(_renderTypeLinked(tp.boundType!, paths));
+      }
+      return tpBuf.toString();
+    }).join(', '));
+    buf.write('&gt;');
+  }
 
-  // Add extends clause
+  // Extends clause
   final supertype = container.supertype;
   if (supertype != null &&
       supertype.modelElement.name != 'Object' &&
       supertype.modelElement.name != 'Enum') {
-    parts.add('extends ${supertype.nameWithGenericsPlain}');
+    buf.write(' <span class="kw">extends</span> ');
+    buf.write(_renderTypeLinked(supertype, paths));
   }
 
-  // Add with clause (for classes and enums with MixedInTypes)
+  // With clause
   if (container is MixedInTypes) {
     final mixins = container.publicMixedInTypes.toList();
     if (mixins.isNotEmpty) {
-      parts
-          .add('with ${mixins.map((m) => m.nameWithGenericsPlain).join(', ')}');
+      buf.write(' <span class="kw">with</span> ');
+      buf.write(mixins.map((m) => _renderTypeLinked(m, paths)).join(', '));
     }
   }
 
-  // Add implements clause
+  // Implements clause
   if (container.publicInterfaces.isNotEmpty) {
-    parts.add(
-        'implements ${container.publicInterfaces.map((i) => i.nameWithGenericsPlain).join(', ')}');
+    buf.write(' <span class="kw">implements</span> ');
+    buf.write(container.publicInterfaces
+        .map((i) => _renderTypeLinked(i, paths))
+        .join(', '));
   }
 
-  return parts.join(' ');
+  return buf.toString();
+}
+
+/// Builds linked HTML mixin declaration with clickable types.
+String _buildLinkedMixinDeclaration(
+    Mixin mixin_, VitePressPathResolver paths) {
+  final buf = StringBuffer();
+
+  // Modifiers
+  for (final modifier in mixin_.containerModifiers) {
+    buf.write('<span class="kw">${_htmlEsc(modifier.displayName)}</span> ');
+  }
+
+  buf.write('<span class="kw">mixin</span> ');
+  buf.write('<span class="fn">${_htmlEsc(mixin_.name)}</span>');
+
+  // Type parameters
+  if (mixin_.typeParameters.isNotEmpty) {
+    buf.write('&lt;');
+    buf.write(mixin_.typeParameters.map((tp) {
+      final tpBuf = StringBuffer(_htmlEsc(tp.element.name!));
+      if (tp.boundType != null) {
+        tpBuf.write(' <span class="kw">extends</span> ');
+        tpBuf.write(_renderTypeLinked(tp.boundType!, paths));
+      }
+      return tpBuf.toString();
+    }).join(', '));
+    buf.write('&gt;');
+  }
+
+  // On clause (superclass constraints)
+  final constraints = mixin_.publicSuperclassConstraints.toList();
+  if (constraints.isNotEmpty) {
+    buf.write(' <span class="kw">on</span> ');
+    buf.write(constraints.map((c) => _renderTypeLinked(c, paths)).join(', '));
+  }
+
+  // Implements clause
+  if (mixin_.publicInterfaces.isNotEmpty) {
+    buf.write(' <span class="kw">implements</span> ');
+    buf.write(mixin_.publicInterfaces
+        .map((i) => _renderTypeLinked(i, paths))
+        .join(', '));
+  }
+
+  return buf.toString();
+}
+
+/// Builds linked HTML extension declaration with clickable "on" type.
+String _buildLinkedExtensionDeclaration(
+    Extension ext, VitePressPathResolver paths) {
+  final buf = StringBuffer();
+  buf.write('<span class="kw">extension</span> ');
+  buf.write('<span class="fn">${_htmlEsc(ext.name)}</span>');
+
+  // Type parameters
+  if (ext.typeParameters.isNotEmpty) {
+    buf.write('&lt;');
+    buf.write(ext.typeParameters.map((tp) {
+      final tpBuf = StringBuffer(_htmlEsc(tp.element.name!));
+      if (tp.boundType != null) {
+        tpBuf.write(' <span class="kw">extends</span> ');
+        tpBuf.write(_renderTypeLinked(tp.boundType!, paths));
+      }
+      return tpBuf.toString();
+    }).join(', '));
+    buf.write('&gt;');
+  }
+
+  buf.write(' <span class="kw">on</span> ');
+  buf.write(_renderTypeLinked(ext.extendedElement, paths));
+
+  return buf.toString();
+}
+
+/// Builds linked HTML extension type declaration with clickable types.
+String _buildLinkedExtensionTypeDeclaration(
+    ExtensionType et, VitePressPathResolver paths) {
+  final buf = StringBuffer();
+  buf.write('<span class="kw">extension type</span> ');
+  buf.write('<span class="fn">${_htmlEsc(et.name)}</span>');
+
+  // Type parameters
+  if (et.typeParameters.isNotEmpty) {
+    buf.write('&lt;');
+    buf.write(et.typeParameters.map((tp) {
+      final tpBuf = StringBuffer(_htmlEsc(tp.element.name!));
+      if (tp.boundType != null) {
+        tpBuf.write(' <span class="kw">extends</span> ');
+        tpBuf.write(_renderTypeLinked(tp.boundType!, paths));
+      }
+      return tpBuf.toString();
+    }).join(', '));
+    buf.write('&gt;');
+  }
+
+  // Representation type
+  buf.write('(${_renderTypeLinked(et.representationType, paths)})');
+
+  // Implements clause
+  if (et.publicInterfaces.isNotEmpty) {
+    buf.write(' <span class="kw">implements</span> ');
+    buf.write(et.publicInterfaces
+        .map((i) => _renderTypeLinked(i, paths))
+        .join(', '));
+  }
+
+  return buf.toString();
 }
 
 // ---------------------------------------------------------------------------
@@ -944,7 +1089,8 @@ String _postProcessMemberDoc(String doc, {required String memberAnchor}) {
 void _renderMemberDocumentation(
   _MarkdownPageBuilder builder,
   ModelElement element,
-  VitePressDocProcessor docs, {
+  VitePressDocProcessor docs,
+  VitePressPathResolver paths, {
   required String memberAnchor,
 }) {
   // Deprecation warning
@@ -952,10 +1098,28 @@ void _renderMemberDocumentation(
     builder.writeDeprecationNotice(_extractDeprecationMessage(element));
   }
 
-  // Main documentation
-  var doc = docs.processDocumentation(element);
-  doc = _postProcessMemberDoc(doc, memberAnchor: memberAnchor);
-  builder.writeParagraph(doc);
+  // Main documentation — separate getter/setter docs when both have documentation
+  if (element is Field && element.getterSetterBothAvailable) {
+    final getterDoc = docs.processDocumentation(element.getter!);
+    final setterDoc = docs.processDocumentation(element.setter!);
+    final combinedDoc = StringBuffer();
+    if (getterDoc.isNotEmpty) {
+      combinedDoc.writeln('**getter:**\n');
+      combinedDoc.writeln(getterDoc);
+      combinedDoc.writeln();
+    }
+    if (setterDoc.isNotEmpty) {
+      combinedDoc.writeln('**setter:**\n');
+      combinedDoc.writeln(setterDoc);
+    }
+    var doc = combinedDoc.toString().trimRight();
+    doc = _postProcessMemberDoc(doc, memberAnchor: memberAnchor);
+    builder.writeParagraph(doc);
+  } else {
+    var doc = docs.processDocumentation(element);
+    doc = _postProcessMemberDoc(doc, memberAnchor: memberAnchor);
+    builder.writeParagraph(doc);
+  }
 
   // Inherited-from notice: use the analyzer element's enclosing element name
   // to find the defining class. This avoids accessing `definingEnclosingContainer`
@@ -964,6 +1128,22 @@ void _renderMemberDocumentation(
     final definingClassName =
         element.element.enclosingElement?.name ?? 'unknown';
     builder.writeInheritedFrom(definingClassName);
+  }
+
+  // Extension attribution notice — matches api.dart.dev format:
+  // "Available on Type, provided by the ExtensionName extension"
+  if ((element is Method && element.isProvidedByExtension) ||
+      (element is Field && element.isProvidedByExtension)) {
+    final ext = element is Method
+        ? element.enclosingExtension
+        : (element as Field).enclosingExtension;
+    final extLink = _markdownLink(ext, paths);
+    final onType = ext.extendedElement;
+    final onTypeName = onType is DefinedElementType
+        ? _markdownLink(onType.modelElement, paths)
+        : escapeGenerics(onType.nameWithGenericsPlain);
+    builder.writeParagraph(
+        '*Available on $onTypeName, provided by the $extLink extension*');
   }
 }
 
@@ -1035,6 +1215,59 @@ String _annotationPlainText(Attribute annotation) {
       .replaceAll('&quot;', '"')
       .replaceAll('&#34;', '"')
       .replaceAll('&#39;', "'");
+}
+
+/// Renders the inheritance chain for a container (class/enum/mixin).
+///
+/// Shows: `Object → Ancestor → ... → CurrentClass` using `publicSuperChainReversed`.
+/// Object is plain text, intermediate types are markdown links, current class is bold.
+void _renderInheritanceChain(
+  _MarkdownPageBuilder builder,
+  InheritingContainer container,
+  VitePressPathResolver paths,
+) {
+  final chain = container.publicSuperChainReversed.toList();
+  if (chain.isEmpty) return;
+
+  final parts = <String>['Object'];
+  for (final type in chain) {
+    parts.add(_markdownLink(type.modelElement, paths));
+  }
+  // Current class — bold, no link
+  parts.add('**${escapeGenerics(plainNameWithGenerics(container))}**');
+
+  builder.writeParagraph(':::info Inheritance\n${parts.join(' → ')}\n:::');
+}
+
+/// Renders the "Implemented types" info block for a container.
+void _renderImplementedTypes(
+  _MarkdownPageBuilder builder,
+  InheritingContainer container,
+  VitePressPathResolver paths,
+) {
+  final interfaces = container.publicInterfaces;
+  if (interfaces.isEmpty) return;
+
+  builder.writeInfoContainer(
+    'Implemented types',
+    interfaces.map((i) => _markdownLink(i.modelElement, paths)).toList(),
+  );
+}
+
+/// Renders the "Mixed-in types" info block for a container.
+void _renderMixedInTypes(
+  _MarkdownPageBuilder builder,
+  InheritingContainer container,
+  VitePressPathResolver paths,
+) {
+  if (container is! MixedInTypes) return;
+  final mixins = container.publicMixedInTypes.toList();
+  if (mixins.isEmpty) return;
+
+  builder.writeInfoContainer(
+    'Mixed-in types',
+    mixins.map((m) => _markdownLink(m.modelElement, paths)).toList(),
+  );
 }
 
 /// Renders the "Implementers" section for a class/interface.
@@ -1241,8 +1474,14 @@ void _renderConstructorMember(
 
   builder.writeSignature(_buildLinkedConstructorSignature(constructor, paths));
 
-  _renderMemberDocumentation(builder, constructor, docs,
+  _renderMemberDocumentation(builder, constructor, docs, paths,
       memberAnchor: anchor);
+
+  // Source code (only when --include-source is enabled)
+  if (constructor.hasSourceCode) {
+    builder.writeDetailsContainer(
+        'Implementation', '```dart\n${_htmlUnescape(constructor.sourceCode)}\n```');
+  }
 }
 
 /// Renders a single field/property as an h3 member section.
@@ -1264,7 +1503,14 @@ void _renderFieldMember(
 
   builder.writeSignature(_buildLinkedFieldSignature(field, paths));
 
-  _renderMemberDocumentation(builder, field, docs, memberAnchor: anchor);
+  _renderMemberDocumentation(builder, field, docs, paths,
+      memberAnchor: anchor);
+
+  // Source code (only when --include-source is enabled)
+  if (field.hasSourceCode) {
+    builder.writeDetailsContainer(
+        'Implementation', '```dart\n${_htmlUnescape(field.sourceCode)}\n```');
+  }
 }
 
 /// Renders a single method or operator as an h3 member section.
@@ -1291,7 +1537,14 @@ void _renderMethodMember(
 
   builder.writeSignature(_buildLinkedCallableSignature(method, paths));
 
-  _renderMemberDocumentation(builder, method, docs, memberAnchor: anchor);
+  _renderMemberDocumentation(builder, method, docs, paths,
+      memberAnchor: anchor);
+
+  // Source code (only when --include-source is enabled)
+  if (method.hasSourceCode) {
+    builder.writeDetailsContainer(
+        'Implementation', '```dart\n${_htmlUnescape(method.sourceCode)}\n```');
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1601,8 +1854,8 @@ String renderClassPage(
     badges: _buildModifierBadges(clazz),
   );
 
-  // Declaration line
-  builder.writeCodeBlock(_buildContainerDeclaration(clazz));
+  // Declaration line (linked)
+  builder.writeSignature(_buildLinkedContainerDeclaration(clazz, paths));
 
   // Deprecation notice
   if (clazz.isDeprecated) {
@@ -1618,6 +1871,15 @@ String renderClassPage(
 
   // Source link
   _renderSourceLink(builder, clazz);
+
+  // Inheritance chain
+  _renderInheritanceChain(builder, clazz, paths);
+
+  // Implemented types
+  _renderImplementedTypes(builder, clazz, paths);
+
+  // Mixed-in types
+  _renderMixedInTypes(builder, clazz, paths);
 
   // Implementers
   _renderImplementors(builder, clazz, paths);
@@ -1658,8 +1920,8 @@ String renderEnumPage(
     badges: _buildModifierBadges(enumeration),
   );
 
-  // Declaration line
-  builder.writeCodeBlock(_buildContainerDeclaration(enumeration));
+  // Declaration line (linked)
+  builder.writeSignature(_buildLinkedContainerDeclaration(enumeration, paths));
 
   // Deprecation notice
   if (enumeration.isDeprecated) {
@@ -1675,6 +1937,15 @@ String renderEnumPage(
 
   // Source link
   _renderSourceLink(builder, enumeration);
+
+  // Inheritance chain
+  _renderInheritanceChain(builder, enumeration, paths);
+
+  // Implemented types
+  _renderImplementedTypes(builder, enumeration, paths);
+
+  // Mixed-in types
+  _renderMixedInTypes(builder, enumeration, paths);
 
   // Implementers
   _renderImplementors(builder, enumeration, paths);
@@ -1734,9 +2005,8 @@ String renderMixinPage(
     badges: _buildModifierBadges(mixin_),
   );
 
-  // Declaration line
-  final declaration = _buildMixinDeclaration(mixin_);
-  builder.writeCodeBlock(declaration);
+  // Declaration line (linked)
+  builder.writeSignature(_buildLinkedMixinDeclaration(mixin_, paths));
 
   // Deprecation notice
   if (mixin_.isDeprecated) {
@@ -1752,6 +2022,15 @@ String renderMixinPage(
 
   // Source link
   _renderSourceLink(builder, mixin_);
+
+  // Inheritance chain
+  _renderInheritanceChain(builder, mixin_, paths);
+
+  // Implemented types
+  _renderImplementedTypes(builder, mixin_, paths);
+
+  // Mixed-in types
+  _renderMixedInTypes(builder, mixin_, paths);
 
   // Implementers
   _renderImplementors(builder, mixin_, paths);
@@ -1797,10 +2076,8 @@ String renderExtensionPage(
 
   builder.writeH1(nameWithGenerics, deprecated: ext.isDeprecated);
 
-  // Declaration line
-  final declaration = 'extension $nameWithGenerics on '
-      '${ext.extendedElement.nameWithGenericsPlain}';
-  builder.writeCodeBlock(declaration);
+  // Declaration line (linked)
+  builder.writeSignature(_buildLinkedExtensionDeclaration(ext, paths));
 
   // Deprecation notice
   if (ext.isDeprecated) {
@@ -1851,9 +2128,8 @@ String renderExtensionTypePage(
     badges: _buildModifierBadges(et),
   );
 
-  // Declaration line
-  final declaration = _buildExtensionTypeDeclaration(et);
-  builder.writeCodeBlock(declaration);
+  // Declaration line (linked)
+  builder.writeSignature(_buildLinkedExtensionTypeDeclaration(et, paths));
 
   // Deprecation notice
   if (et.isDeprecated) {
@@ -2153,50 +2429,10 @@ void _renderExtensionsTable(
   );
 }
 
-/// Builds the mixin declaration string.
-String _buildMixinDeclaration(Mixin mixin_) {
-  final parts = <String>[];
-
-  // Modifiers
-  for (final modifier in mixin_.containerModifiers) {
-    parts.add(modifier.displayName);
-  }
-
-  parts.add('mixin');
-  parts.add(plainNameWithGenerics(mixin_));
-
-  // Superclass constraints ("on" clause)
-  final constraints = mixin_.publicSuperclassConstraints.toList();
-  if (constraints.isNotEmpty) {
-    parts.add(
-        'on ${constraints.map((c) => c.nameWithGenericsPlain).join(', ')}');
-  }
-
-  // Implements clause
-  if (mixin_.publicInterfaces.isNotEmpty) {
-    parts.add(
-        'implements ${mixin_.publicInterfaces.map((i) => i.nameWithGenericsPlain).join(', ')}');
-  }
-
-  return parts.join(' ');
-}
-
-/// Builds the extension type declaration string.
-String _buildExtensionTypeDeclaration(ExtensionType et) {
-  final parts = <String>[];
-
-  parts.add('extension type');
-  parts.add(plainNameWithGenerics(et));
-  parts.add('(${et.representationType.nameWithGenericsPlain})');
-
-  // Implements clause
-  if (et.publicInterfaces.isNotEmpty) {
-    parts.add(
-        'implements ${et.publicInterfaces.map((i) => i.nameWithGenericsPlain).join(', ')}');
-  }
-
-  return parts.join(' ');
-}
+// Plain-text mixin/extension-type declarations (kept for potential future use).
+//
+// String _buildMixinDeclaration(Mixin mixin_) { ... }
+// String _buildExtensionTypeDeclaration(ExtensionType et) { ... }
 
 /// Returns `true` if the library has any public API elements (classes,
 /// functions, enums, etc.).
