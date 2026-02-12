@@ -92,7 +92,16 @@ class FunctionTypeElementTypeRendererHtml
         if (plain) {
           buffer
             ..write('<')
-            ..writeAll(elementType.typeFormals.map((t) => t.name), ', ')
+            ..writeAll(
+                elementType.typeFormals.map((t) {
+                  var result = t.element.name!;
+                  final bound = t.boundType;
+                  if (bound != null) {
+                    result += ' extends ${bound.nameWithGenericsPlain}';
+                  }
+                  return result;
+                }),
+                ', ')
             ..write('>');
         } else {
           buffer

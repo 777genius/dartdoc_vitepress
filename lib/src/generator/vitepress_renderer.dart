@@ -567,7 +567,10 @@ String _buildParameterSignature(List<Parameter> parameters) {
     }
 
     // Type and name (use _renderTypePlain to expand callable types)
-    buf.write('${_renderTypePlain(param.modelType)} ${param.name}');
+    buf.write(_renderTypePlain(param.modelType));
+    if (param.name.isNotEmpty) {
+      buf.write(' ${param.name}');
+    }
 
     // Default value
     final defaultValue = param.defaultValue;
@@ -800,10 +803,17 @@ void _renderLibraryOverviewTable(
 ) {
   if (elements.isEmpty) return;
 
+  // Filter out elements that don't have a link (e.g. re-exported external/SDK
+  // classes whose canonical library is not local). The sidebar already excludes
+  // these via _belongsToLibrary() filtering; apply the same logic here.
+  final linkableElements =
+      elements.where((e) => paths.linkFor(e) != null).toList();
+  if (linkableElements.isEmpty) return;
+
   builder.writeH2(sectionTitle);
 
   final rows = <List<String>>[];
-  for (final element in elements) {
+  for (final element in linkableElements) {
     final link = _markdownLink(element, paths);
     final oneLineDoc = element is ModelElement
         ? docs.extractOneLineDoc(element)

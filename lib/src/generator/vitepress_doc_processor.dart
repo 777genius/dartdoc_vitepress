@@ -294,6 +294,18 @@ class VitePressDocProcessor {
     //       `dart-async/dart-async/` -> `dart-async/`
     final dedup = RegExp(r'([^/]+)/\1/?$');
     path = path.replaceFirstMapped(dedup, (m) => '${m[1]}/');
+    // Handle ClassName/memberName pattern: when the path has exactly two
+    // segments and the first is NOT a known SDK library directory (dart-*),
+    // treat the second segment as an anchor (member name on the class page).
+    // E.g. `SubForDocComments/localMethod` -> `SubForDocComments#localmethod`
+    final segments = path.split('/');
+    if (segments.length == 2 &&
+        segments[1].isNotEmpty &&
+        !segments[0].startsWith('dart-') &&
+        !segments[0].startsWith('dart.') &&
+        !segments[0].contains('-library')) {
+      path = '${segments[0]}#${segments[1].toLowerCase()}';
+    }
     // Normalize internal SDK library directory names in the path.
     // The Dart SDK creates duplicate Library objects with internal names
     // like `dart.io` (dirName `dart.io`) alongside canonical `dart:io`
@@ -309,8 +321,14 @@ class VitePressDocProcessor {
       path = '/api/$path';
     }
     // Normalize the path to resolve any remaining relative segments.
-    path = Uri.parse(path).normalizePath().path;
-    return path;
+    // Uri.parse strips the fragment (#anchor) from .path, so we need
+    // to preserve it and re-append after normalization.
+    final uri = Uri.parse(path);
+    var normalized = uri.normalizePath().path;
+    if (uri.hasFragment) {
+      normalized = '$normalized#${uri.fragment}';
+    }
+    return normalized;
   }
 
   /// Matches internal SDK library directory names (`dart.xxx`) at the
@@ -363,6 +381,13 @@ class VitePressDocProcessor {
   /// resolved to actual HTML content.
   static final _injectMarker = RegExp(r'DARTDOC_INJECT\{([a-f0-9]+)\}');
 
+  /// Pattern matching raw `{@inject-html}...{@end-inject-html}` directives
+  /// that were not processed into `<dartdoc-html>` placeholders (because
+  /// the `--inject-html` flag was not enabled). The HTML content between the
+  /// tags is preserved; only the directive markers are stripped.
+  static final _rawInjectHtmlDirective =
+      RegExp(r'\{@inject-html\s*\}(.*?)\{@end-inject-html\}', dotAll: true);
+
   /// Pattern matching `{@tool ...}...{@end-tool}` directive blocks.
   ///
   /// These are Flutter-specific directives that produce interactive samples.
@@ -407,6 +432,16 @@ class VitePressDocProcessor {
     // These produce interactive samples in Flutter docs but pass through
     // unresolved when the tool infrastructure is unavailable.
     text = text.replaceAll(_toolDirective, '');
+
+    // Step 5: Strip raw {@inject-html}...{@end-inject-html} directives.
+    // When `--inject-html` is not enabled, dartdoc does NOT replace these
+    // directives with `<dartdoc-html>` placeholders, so they pass through
+    // as raw text. Extract the HTML content between the tags and include
+    // it as-is (the user intended it to be HTML output).
+    text = text.replaceAllMapped(
+      _rawInjectHtmlDirective,
+      (m) => m[1]!,
+    );
 
     return text;
   }
@@ -661,14 +696,20 @@ class VitePressDocProcessor {
           // href contains a full remote URL.
           href = href.replaceAll(_htmlBasePlaceholder, '');
 
-          // Rewrite relative dartdoc .html paths to VitePress paths.
-          // When linkFor() returns null but href exists with .html suffix,
-          // it's a dartdoc-format relative path that won't exist in
-          // VitePress output.
+          // Rewrite relative dartdoc paths to VitePress paths.
+          // When linkFor() returns null but href exists, it could be:
+          // 1. A .html-suffixed dartdoc path (e.g. `dart-core/int.html`)
+          // 2. A relative directory path (e.g. `mylibpub/` for a library)
+          // Both need conversion to absolute VitePress paths.
           if (href.isNotEmpty &&
               !href.startsWith('http') &&
-              href.endsWith('.html')) {
-            href = _convertHtmlPathToVitePress(href);
+              !href.startsWith('/')) {
+            if (href.endsWith('.html')) {
+              href = _convertHtmlPathToVitePress(href);
+            } else {
+              // Relative non-.html path (e.g. `mylibpub/`): prepend /api/.
+              href = '/api/$href';
+            }
           }
 
           if (href.isNotEmpty) {
