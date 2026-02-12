@@ -668,9 +668,10 @@ String _renderTypeLinked(ElementType type, VitePressPathResolver paths) {
     final name = _htmlEsc(type.name);
     final buf = StringBuffer();
 
-    // Type name — link if we have a page, plain text otherwise
-    buf.write(
-        url != null ? '<a href="$url" class="type-link">$name</a>' : name);
+    // Type name — link if we have a page, styled span otherwise
+    buf.write(url != null
+        ? '<a href="$url" class="type-link">$name</a>'
+        : '<span class="type">$name</span>');
 
     // Type arguments (recursive)
     final args = type.typeArguments.toList();
@@ -688,7 +689,7 @@ String _renderTypeLinked(ElementType type, VitePressPathResolver paths) {
   if (type is Callable) {
     final buf = StringBuffer();
     buf.write(_renderTypeLinked(type.returnType, paths));
-    buf.write(' Function(');
+    buf.write(' <span class="type">Function</span>(');
     buf.write(_buildLinkedCallableParamList(type.parameters, paths));
     buf.write(')');
     if (type.nullabilitySuffix.isNotEmpty) {
@@ -697,8 +698,32 @@ String _renderTypeLinked(ElementType type, VitePressPathResolver paths) {
     return buf.toString();
   }
 
-  // UndefinedElementType (void, dynamic, Never) — plain text
-  return _htmlEsc(type.nameWithGenericsPlain);
+  // UndefinedElementType (void, dynamic, Never) — styled as type
+  return '<span class="type">${_htmlEsc(type.nameWithGenericsPlain)}</span>';
+}
+
+/// Wraps a default value in an appropriate syntax-highlighting span.
+///
+/// Numeric literals → `.num-lit`, string literals → `.str-lit`,
+/// `true`/`false`/`null` → `.kw`, everything else → plain escaped text.
+String _wrapDefaultValue(String value) {
+  final trimmed = value.trim();
+  final escaped = _htmlEsc(trimmed);
+
+  // Numeric literal (int or double, possibly negative)
+  if (RegExp(r'^-?\d').hasMatch(trimmed)) {
+    return '<span class="num-lit">$escaped</span>';
+  }
+  // String literal (single/double/raw/triple-quoted)
+  if (RegExp(r'''^r?['"]''').hasMatch(trimmed)) {
+    return '<span class="str-lit">$escaped</span>';
+  }
+  // Boolean / null keywords
+  if (trimmed == 'true' || trimmed == 'false' || trimmed == 'null') {
+    return '<span class="kw">$escaped</span>';
+  }
+  // Constant references, const expressions — plain text
+  return escaped;
 }
 
 /// Builds the inner parameter list for a callable type with linked types.
@@ -727,12 +752,12 @@ String _buildLinkedCallableParamList(
 
     buf.write(_renderTypeLinked(param.modelType, paths));
     if (param.name.isNotEmpty) {
-      buf.write(' ${_htmlEsc(param.name)}');
+      buf.write(' <span class="param">${_htmlEsc(param.name)}</span>');
     }
 
     final defaultValue = param.defaultValue;
     if (defaultValue != null && defaultValue.isNotEmpty) {
-      buf.write(' = ${_htmlEsc(defaultValue)}');
+      buf.write(' = ${_wrapDefaultValue(defaultValue)}');
     }
 
     parts.add(buf.toString());
@@ -770,12 +795,12 @@ String _buildLinkedParameterSignature(
 
     buf.write(_renderTypeLinked(param.modelType, paths));
     if (param.name.isNotEmpty) {
-      buf.write(' ${_htmlEsc(param.name)}');
+      buf.write(' <span class="param">${_htmlEsc(param.name)}</span>');
     }
 
     final defaultValue = param.defaultValue;
     if (defaultValue != null && defaultValue.isNotEmpty) {
-      buf.write(' = ${_htmlEsc(defaultValue)}');
+      buf.write(' = ${_wrapDefaultValue(defaultValue)}');
     }
 
     parts.add(buf.toString());
@@ -800,7 +825,7 @@ String _buildLinkedCallableSignature(
     buf.write('${_renderTypeLinked(element.modelType.returnType, paths)} ');
   }
 
-  buf.write(_htmlEsc(plainNameWithGenerics(element)));
+  buf.write('<span class="fn">${_htmlEsc(plainNameWithGenerics(element))}</span>');
   buf.write(_buildLinkedParameterSignature(element.parameters, paths));
 
   return buf.toString();
@@ -814,7 +839,7 @@ String _buildLinkedConstructorSignature(
   if (constructor.isConst) buf.write('<span class="kw">const</span> ');
   if (constructor.isFactory) buf.write('<span class="kw">factory</span> ');
 
-  buf.write(_htmlEsc(constructor.displayName));
+  buf.write('<span class="fn">${_htmlEsc(constructor.displayName)}</span>');
   buf.write(_buildLinkedParameterSignature(constructor.parameters, paths));
 
   return buf.toString();
@@ -834,19 +859,20 @@ String _buildLinkedFieldSignature(
   }
 
   final linkedType = _renderTypeLinked(field.modelType, paths);
+  final fnName = '<span class="fn">${_htmlEsc(field.name)}</span>';
   if (field.hasExplicitGetter && !field.hasExplicitSetter) {
-    sig.write('$linkedType <span class="kw">get</span> ${_htmlEsc(field.name)}');
+    sig.write('$linkedType <span class="kw">get</span> $fnName');
   } else if (field.hasExplicitSetter && !field.hasExplicitGetter) {
     sig.write(
-        '<span class="kw">set</span> ${_htmlEsc(field.name)}($linkedType value)');
+        '<span class="kw">set</span> $fnName($linkedType <span class="param">value</span>)');
   } else if (field.hasExplicitGetter && field.hasExplicitSetter) {
-    sig.write('$linkedType <span class="kw">get</span> ${_htmlEsc(field.name)}');
+    sig.write('$linkedType <span class="kw">get</span> $fnName');
   } else {
-    sig.write('$linkedType ${_htmlEsc(field.name)}');
+    sig.write('$linkedType $fnName');
   }
 
   if (field.isConst && field.hasConstantValueForDisplay) {
-    sig.write(' = ${_htmlEsc(field.constantValueBase)}');
+    sig.write(' = ${_wrapDefaultValue(field.constantValueBase)}');
   }
 
   return sig.toString();
@@ -861,10 +887,11 @@ String _buildLinkedPropertySignature(
   } else if (prop.isFinal) {
     sig.write('<span class="kw">final</span> ');
   }
-  sig.write('${_renderTypeLinked(prop.modelType, paths)} ${_htmlEsc(prop.name)}');
+  sig.write(
+      '${_renderTypeLinked(prop.modelType, paths)} <span class="fn">${_htmlEsc(prop.name)}</span>');
 
   if (prop.isConst && prop.hasConstantValueForDisplay) {
-    sig.write(' = ${_htmlEsc(prop.constantValueBase)}');
+    sig.write(' = ${_wrapDefaultValue(prop.constantValueBase)}');
   }
 
   return sig.toString();
@@ -1968,12 +1995,12 @@ String renderTypedefPage(
 
   // Typedef declaration
   final sig = StringBuffer(
-      '<span class="kw">typedef</span> ${_htmlEsc(nameWithGenerics)} = ');
+      '<span class="kw">typedef</span> <span class="fn">${_htmlEsc(nameWithGenerics)}</span> = ');
 
   if (td is FunctionTypedef) {
     // Function typedef: show the return type and parameter types
     sig.write(_renderTypeLinked(td.modelType.returnType, paths));
-    sig.write(' Function');
+    sig.write(' <span class="type">Function</span>');
     sig.write(_buildLinkedParameterSignature(td.parameters, paths));
   } else {
     // Type alias (ClassTypedef, GeneralizedTypedef)

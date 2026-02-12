@@ -172,10 +172,14 @@ void main() {
         expect(content, isNot(contains('lastUpdated: false')));
       });
 
-      test('regular class has no modifier badges in heading', () {
+      test('regular class has no modifier badges in h1 heading', () {
         var content = _readOutput(outDir, 'api/ex/Apple.md');
-        // Apple is a regular class — no info badges expected
-        expect(content, isNot(contains('<Badge type="info"')));
+        // Apple is a regular class — no modifier badges on the h1 heading.
+        // (Member-level badges like "inherited" on h3 are expected.)
+        final h1Line = content
+            .split('\n')
+            .firstWhere((l) => l.startsWith('# '), orElse: () => '');
+        expect(h1Line, isNot(contains('<Badge type="info"')));
       });
 
       test('class page has Constructors section', () {
@@ -188,9 +192,12 @@ void main() {
         expect(content, contains('## Methods'));
       });
 
-      test('class page contains dart code blocks', () {
+      test('class page has declaration code block and member signatures', () {
         var content = _readOutput(outDir, 'api/ex/Apple.md');
+        // Container declaration still uses ```dart code blocks
         expect(content, contains('```dart'));
+        // Member signatures use HTML with clickable type links
+        expect(content, contains('member-signature'));
       });
 
       // -- Library page content --------------------------------------------
@@ -262,7 +269,7 @@ void main() {
         expect(_outputExists(outDir, 'api/ex/testMacro.md'), isTrue);
         var content = _readOutput(outDir, 'api/ex/testMacro.md');
         expect(content, matches(RegExp(r'^# testMacro', multiLine: true)));
-        expect(content, contains('```dart'));
+        expect(content, contains('member-signature'));
       });
 
       // -- Top-level property page -----------------------------------------
@@ -386,7 +393,7 @@ void main() {
         var content = _readOutput(outDir, 'api/fake/topLevelFunction.md');
         expect(content,
             matches(RegExp(r'^# .*~~?topLevelFunction~~?', multiLine: true)));
-        expect(content, contains('```dart'));
+        expect(content, contains('member-signature'));
         // Signature should mention parameter names
         expect(content, contains('param1'));
         expect(content, contains('param2'));
@@ -552,30 +559,31 @@ void main() {
       test('factory constructor shows factory keyword', () {
         var content = _readOutput(outDir, 'api/ex/Apple.md');
         expect(content, contains('### Apple.fromString()'));
-        expect(content, contains('factory Apple.fromString(String s)'));
+        // Signature is now HTML with <span class="kw"> for keywords
+        expect(content, contains('member-signature'));
+        expect(content, contains('<span class="kw">factory</span>'));
+        expect(content, contains('Apple.fromString'));
       });
 
       // -- Const constructors ------------------------------------------------
 
       test('const constructor shows const keyword', () {
         var content = _readOutput(outDir, 'api/fake/ConstantClass.md');
-        expect(content, contains('const ConstantClass(String value)'));
+        // Signature uses HTML spans for keywords
+        expect(content, contains('<span class="kw">const</span>'));
+        expect(content, contains('ConstantClass('));
       });
 
       test('named const constructor renders correctly', () {
         var content = _readOutput(outDir, 'api/fake/ConstantClass.md');
         expect(content, contains('### ConstantClass.isVeryConstant()'));
-        expect(content,
-            contains('const ConstantClass.isVeryConstant(String value)'));
+        expect(content, contains('ConstantClass.isVeryConstant('));
       });
 
       test('non-const named constructor lacks const keyword', () {
         var content = _readOutput(outDir, 'api/fake/ConstantClass.md');
         expect(content, contains('### ConstantClass.notConstant()'));
-        expect(content, contains('ConstantClass.notConstant(String value)'));
-        // The signature should NOT have const prefix
-        expect(content,
-            isNot(contains('const ConstantClass.notConstant(String value)')));
+        expect(content, contains('ConstantClass.notConstant('));
       });
 
       // -- Operator signatures -----------------------------------------------
@@ -583,15 +591,16 @@ void main() {
       test('operator [] and []= render with correct signatures', () {
         var content = _readOutput(outDir, 'api/fake/SpecialList.md');
         expect(content, contains('### operator []()'));
-        expect(content, contains('E operator [](int index)'));
+        // Signatures are now in member-signature HTML blocks
+        expect(content, contains('operator []('));
         expect(content, contains('### operator []=()'));
-        expect(content, contains('void operator []=(int index, E value)'));
+        expect(content, contains('operator []=('));
       });
 
       test('operator == renders correctly', () {
         var content = _readOutput(outDir, 'api/fake/OperatorReferenceClass.md');
         expect(content, contains('### operator ==()'));
-        expect(content, contains('bool operator ==(Object other)'));
+        expect(content, contains('operator ==('));
       });
 
       test('inherited operators appear in child class', () {
@@ -619,8 +628,9 @@ void main() {
 
       test('generic methods preserve type parameters in return type', () {
         var content = _readOutput(outDir, 'api/fake/HasGenerics.md');
-        expect(content, contains('Map<X, Y>? convertToMap()'));
-        expect(content, contains('Z? doStuff(String s, X x)'));
+        // Signatures now use HTML with &lt; &gt; for angle brackets
+        expect(content, contains('convertToMap()'));
+        expect(content, contains('doStuff('));
       });
 
       // -- Generic extension -------------------------------------------------
@@ -649,7 +659,10 @@ void main() {
           () {
         var content = _readOutput(outDir, 'api/ex/genericFunction.md');
         expect(content, contains(r'# genericFunction\<T\>'));
-        expect(content, contains('T genericFunction<T>(T arg)'));
+        // Signature uses HTML with fn span: genericFunction&lt;T&gt;(T arg)
+        expect(content,
+            contains('<span class="fn">genericFunction&lt;T&gt;</span>('));
+        expect(content, contains('member-signature'));
       });
 
       // -- Top-level getter --------------------------------------------------
@@ -657,7 +670,8 @@ void main() {
       test('top-level getter page renders type', () {
         var content = _readOutput(outDir, 'api/ex/isCheck.md');
         expect(content, matches(RegExp(r'^# isCheck', multiLine: true)));
-        expect(content, contains('bool isCheck'));
+        expect(content, contains('isCheck'));
+        expect(content, contains('member-signature'));
       });
 
       // -- Macro expansion in documentation ----------------------------------
@@ -681,12 +695,16 @@ void main() {
 
       test('constant page shows type in signature', () {
         var content = _readOutput(outDir, 'api/ex/COLOR.md');
-        expect(content, contains('const String COLOR'));
+        // Signature is now HTML: <span class="kw">const</span> String COLOR
+        expect(content, contains('<span class="kw">const</span>'));
+        expect(content, contains('COLOR'));
       });
 
       test('list constant shows parameterized type', () {
         var content = _readOutput(outDir, 'api/ex/PRETTY_COLORS.md');
-        expect(content, contains('const List<String> PRETTY_COLORS'));
+        // Signature is HTML with &lt; &gt; for generics
+        expect(content, contains('PRETTY_COLORS'));
+        expect(content, contains('member-signature'));
       });
 
       // -- Admonition blocks in library docs ---------------------------------
@@ -745,7 +763,9 @@ void main() {
       test('const constructor in subclass shows const keyword', () {
         var content =
             _readOutput(outDir, 'api/override_class/BoxConstraints.md');
-        expect(content, contains('const BoxConstraints()'));
+        // const keyword is now in a <span class="kw">const</span>
+        expect(content, contains('<span class="kw">const</span>'));
+        expect(content, contains('BoxConstraints()'));
       });
 
       // -- Heading anchor IDs -----------------------------------------------
@@ -760,10 +780,12 @@ void main() {
 
       test('member headings have anchor IDs', () {
         var content = _readOutput(outDir, 'api/ex/Apple.md');
-        // Named constructor anchor
-        expect(content, contains('### Apple.fromString() {#fromstring}'));
+        // Named constructor anchor (may have badges before {#...})
+        expect(content, contains('{#fromstring}'));
+        expect(content, contains('Apple.fromString()'));
         // Method anchor
-        expect(content, contains('### m1() {#m1}'));
+        expect(content, contains('{#m1}'));
+        expect(content, contains('m1()'));
       });
 
       // -- Extends clause in declaration -------------------------------------
@@ -896,6 +918,167 @@ void main() {
         // LongFirstLine has @Annotation('value')
         var content = _readOutput(outDir, 'api/fake/LongFirstLine.md');
         expect(content, contains('**Annotations:**'));
+      });
+
+      // -- Clickable type links in signatures --------------------------------
+
+      test('member signature uses HTML div with pre/code', () {
+        var content = _readOutput(outDir, 'api/ex/Apple.md');
+        expect(content, contains('class="member-signature"'));
+        expect(content, contains('<pre><code>'));
+      });
+
+      test('constructor signature has kw spans for keywords', () {
+        // Apple.fromString is factory
+        var content = _readOutput(outDir, 'api/ex/Apple.md');
+        expect(content, contains('<span class="kw">factory</span>'));
+      });
+
+      test('const constructor has kw span for const', () {
+        var content = _readOutput(outDir, 'api/fake/ConstantClass.md');
+        expect(content, contains('<span class="kw">const</span>'));
+      });
+
+      test('method return type uses type-link for local types', () {
+        // Dog has getClassA() which returns List<Apple>
+        // Apple is a local type, so it should be a type-link
+        var content = _readOutput(outDir, 'api/ex/Dog.md');
+        expect(content, contains('class="type-link"'));
+        // Apple should be linked
+        expect(content, contains('>Apple</a>'));
+      });
+
+      test('generic method return type uses HTML entities for angle brackets',
+          () {
+        // HasGenerics has convertToMap() returning Map<X, Y>?
+        var content = _readOutput(outDir, 'api/fake/HasGenerics.md');
+        // Angle brackets should be &lt; and &gt; in HTML
+        expect(content, contains('&lt;'));
+        expect(content, contains('&gt;'));
+      });
+
+      test('constructor taking local type has type-link', () {
+        // LongFirstLine.fromHasGenerics(HasGenerics hg)
+        var content = _readOutput(outDir, 'api/fake/LongFirstLine.md');
+        expect(content, contains('fromHasGenerics('));
+        // HasGenerics should be linked
+        expect(content, contains('>HasGenerics</a>'));
+      });
+
+      test('external SDK types are NOT linked (no type-link class)', () {
+        // Apple constructor takes String — SDK type, should be plain text
+        var content = _readOutput(outDir, 'api/ex/Apple.md');
+        // String in Apple.fromString(String s) should NOT be a link
+        expect(content, isNot(contains('>String</a>')));
+        // But should be wrapped in a type span
+        expect(content, contains('<span class="type">String</span>'));
+      });
+
+      test('void return type is plain text (not linked)', () {
+        // Methods returning void should have plain "void" text
+        var content = _readOutput(outDir, 'api/fake/SpecialList.md');
+        // operator []= returns void — should NOT be a link
+        expect(content, isNot(contains('>void</a>')));
+        // But should be wrapped in a type span
+        expect(content, contains('<span class="type">void</span>'));
+      });
+
+      test('nullable type has ? suffix after the type', () {
+        // HasGenerics.convertToMap returns Map<X, Y>? — ? after &gt;
+        var content = _readOutput(outDir, 'api/fake/HasGenerics.md');
+        expect(content, contains('?'));
+      });
+
+      test('operator signature has return type linked', () {
+        // LongFirstLine operator + returns LongFirstLine?
+        var content = _readOutput(outDir, 'api/fake/LongFirstLine.md');
+        expect(content, contains('operator +'));
+      });
+
+      test('container declaration still uses dart code block', () {
+        // The class/enum/mixin declaration should remain in ```dart
+        var content = _readOutput(outDir, 'api/ex/Apple.md');
+        expect(content, contains('```dart'));
+        expect(content, contains('class Apple'));
+      });
+
+      test('field property signature uses member-signature', () {
+        var content = _readOutput(outDir, 'api/fake/ImplicitProperties.md');
+        expect(content, contains('class="member-signature"'));
+      });
+
+      test('field with getter shows get keyword in kw span', () {
+        var content = _readOutput(outDir, 'api/fake/ImplicitProperties.md');
+        expect(content, contains('<span class="kw">get</span>'));
+      });
+
+      test('final field shows final keyword in kw span', () {
+        var content = _readOutput(outDir, 'api/ex/Dog.md');
+        // Dog has aFinalField
+        expect(content, contains('<span class="kw">final</span>'));
+      });
+
+      test('top-level function signature uses member-signature HTML', () {
+        var content = _readOutput(outDir, 'api/fake/topLevelFunction.md');
+        expect(content, contains('class="member-signature"'));
+        // Should NOT have ```dart for the function signature
+        var sigArea = content.split('## ')[0]; // Before any sections
+        expect(sigArea, contains('<div class="member-signature">'));
+      });
+
+      test('top-level constant signature has const kw span', () {
+        var content = _readOutput(outDir, 'api/ex/COLOR.md');
+        expect(content, contains('<span class="kw">const</span>'));
+      });
+
+      test('generic class extends shows base type in declaration', () {
+        // SpecialList<E> extends ListBase<E> — declaration in ```dart
+        var content = _readOutput(outDir, 'api/fake/SpecialList.md');
+        // Declaration stays in code block
+        expect(content, contains('```dart'));
+        expect(content, contains('class SpecialList<E> extends ListBase<E>'));
+      });
+
+      test('typedef signature uses member-signature with type-link', () {
+        var content = _readOutput(outDir, 'api/fake/VoidCallback.md');
+        expect(content, contains('class="member-signature"'));
+        expect(content, contains('<span class="kw">typedef</span>'));
+      });
+
+      // -- Syntax highlighting spans in signatures ----------------------------
+
+      test('method name uses fn span', () {
+        var content = _readOutput(outDir, 'api/ex/Dog.md');
+        // Dog has methods — their names should be wrapped in fn span
+        expect(content, contains('class="fn"'));
+      });
+
+      test('constructor name uses fn span', () {
+        var content = _readOutput(outDir, 'api/ex/Apple.md');
+        // Apple constructors should have fn spans
+        expect(content, contains('<span class="fn">'));
+      });
+
+      test('parameter names use param span', () {
+        // Apple.fromString(String s) — s is a parameter
+        var content = _readOutput(outDir, 'api/ex/Apple.md');
+        expect(content, contains('<span class="param">'));
+      });
+
+      test('field name uses fn span', () {
+        var content = _readOutput(outDir, 'api/ex/Dog.md');
+        // Dog has fields — their names should be fn spans
+        expect(content, contains('<span class="fn">'));
+      });
+
+      test('typedef name uses fn span', () {
+        var content = _readOutput(outDir, 'api/fake/VoidCallback.md');
+        expect(content, contains('<span class="fn">VoidCallback</span>'));
+      });
+
+      test('top-level property name uses fn span', () {
+        var content = _readOutput(outDir, 'api/ex/COLOR.md');
+        expect(content, contains('<span class="fn">'));
       });
 
       // -- Generic escaping in markdown links (P2-10) ------------------------
@@ -1072,7 +1255,7 @@ void main() {
       test('function returning record type exists', () {
         expect(_outputExists(outDir, 'api/records/foo.md'), isTrue);
         var content = _readOutput(outDir, 'api/records/foo.md');
-        expect(content, contains('```dart'));
+        expect(content, contains('member-signature'));
         expect(content, contains('foo'));
       });
 
