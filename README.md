@@ -198,6 +198,59 @@ that you can extend:
 - **Theme customization** — `custom.css` or full theme override
 - **Data transforms** — import `api-sidebar.ts` or scan `api/`
 
+## Build Optimization for Large Sites
+
+For typical packages (20–200 API pages), the default config works out of the box. For very large projects (1,000+ pages, e.g. Dart SDK with ~1,800 pages), the VitePress build may run out of memory. The following settings in `.vitepress/config.ts` and `package.json` resolve this:
+
+```ts
+// .vitepress/config.ts
+export default defineConfig({
+  // Limit concurrent page rendering (default: 64).
+  // Lower values reduce peak memory at the cost of slower builds.
+  buildConcurrency: 8,
+
+  // Extract page metadata into a shared JS chunk instead of
+  // inlining the hash map in every HTML file.
+  metaChunk: true,
+
+  vite: {
+    build: {
+      // Disable source maps to reduce memory usage.
+      sourcemap: false,
+      // Disable Rollup's module cache so GC can free AST data
+      // between modules. Trades speed for lower memory.
+      rollupOptions: {
+        cache: false,
+      },
+    },
+  },
+  // ...
+})
+```
+
+```json
+// package.json — increase Node.js heap limit
+{
+  "scripts": {
+    "build": "NODE_OPTIONS='--max-old-space-size=24576' vitepress build"
+  }
+}
+```
+
+| Option | What it does | Trade-off |
+|---|---|---|
+| `buildConcurrency: 8` | Renders 8 pages at a time instead of 64 | Slower for small sites |
+| `metaChunk: true` | Shared metadata chunk | Extra HTTP request on first load |
+| `sourcemap: false` | No source maps in production | Harder to debug production issues |
+| `rollupOptions.cache: false` | Frees AST memory between modules | Slower bundling |
+| `--max-old-space-size=24576` | 24 GB JS heap (needs 32 GB RAM) | Not available on all machines |
+
+For CI/CD (GitHub Actions standard runner has ~7 GB RAM), use `--max-old-space-size=7168` and consider a self-hosted runner for very large sites.
+
+## Roadmap / Known Differences
+
+- **Member pages are inline.** Class members (constructors, methods, properties, operators) are rendered as sections on the class page rather than as separate subpages (unlike api.dart.dev which creates individual pages like `/dart-core/Uri/toString.html`). This produces ~1,800 files for the Dart SDK instead of ~15,000+, resulting in faster builds and lower memory usage. Separate member pages may be added in a future release.
+
 ## Upstream
 
 Based on [dart-lang/dartdoc v9.0.2](https://github.com/dart-lang/dartdoc) (commit `af008503`).
