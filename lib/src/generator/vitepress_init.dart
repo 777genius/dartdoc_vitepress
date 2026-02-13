@@ -161,6 +161,9 @@ class VitePressInitGenerator {
       content: "import type { DefaultTheme } from 'vitepress'\n\n"
           'export const guideSidebar: DefaultTheme.Sidebar = {}\n',
     );
+
+    // Ensure existing sites import the generated api-styles.css.
+    _patchIndexTsImport();
   }
 
   /// Builds the VitePress `socialLinks` array value from a repository URL.
@@ -204,6 +207,33 @@ class VitePressInitGenerator {
       parent.create();
     }
     existingFile.writeAsStringSync(content);
+  }
+
+  /// Patches an existing `theme/index.ts` to import `api-styles.css`.
+  ///
+  /// For sites generated before the api-styles.css feature was added, the
+  /// scaffold `index.ts` won't have the import. This method reads the file
+  /// and injects `import '../generated/api-styles.css'` right after
+  /// `import './custom.css'` if it's missing.
+  ///
+  /// Idempotent: does nothing if the import already exists or if the file
+  /// doesn't exist yet (it will be created by `_writeTemplateIfAbsent`).
+  void _patchIndexTsImport() {
+    final indexTsPath =
+        p.normalize(p.join(outputPath, '.vitepress', 'theme', 'index.ts'));
+    final file = resourceProvider.getFile(indexTsPath);
+    if (!file.exists) return;
+
+    var content = file.readAsStringSync();
+    const importLine = "import '../generated/api-styles.css'";
+    if (content.contains(importLine)) return;
+
+    // Insert after `import './custom.css'` line.
+    const anchor = "import './custom.css'";
+    if (content.contains(anchor)) {
+      content = content.replaceFirst(anchor, '$anchor\n$importLine');
+      file.writeAsStringSync(content);
+    }
   }
 
   /// Reads a template, applies placeholder substitution, and writes to output

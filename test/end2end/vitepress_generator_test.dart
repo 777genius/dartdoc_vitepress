@@ -129,6 +129,20 @@ void main() {
             isTrue);
       });
 
+      test('api-styles.css is generated with member-signature styles', () {
+        var content =
+            _readOutput(outDir, '.vitepress/generated/api-styles.css');
+        expect(content, contains('.member-signature'));
+        expect(content, contains('.kw'));
+        expect(content, contains('pre-wrap'));
+        expect(content, contains('a.api-link'));
+      });
+
+      test('theme index.ts imports api-styles.css', () {
+        var content = _readOutput(outDir, '.vitepress/theme/index.ts');
+        expect(content, contains("import '../generated/api-styles.css'"));
+      });
+
       test('scaffold files are generated', () {
         expect(_outputExists(outDir, 'package.json'), isTrue);
         expect(_outputExists(outDir, '.vitepress/config.ts'), isTrue);
@@ -1447,6 +1461,58 @@ void main() {
 
           expect(staleGuide.exists, isFalse,
               reason: 'Stale .md file in guide/ should be deleted');
+        } finally {
+          outDir.delete();
+        }
+      });
+
+      test('stale .css file in .vitepress/generated/ is deleted', () async {
+        var outDir =
+            _resourceProvider.createSystemTemp('vitepress_stale_css.');
+        try {
+          var dartdoc1 = _buildVitePressDartdoc([], _testPackageDir, outDir);
+          await dartdoc1.generateDocs();
+
+          var staleCss = _resourceProvider.getFile(
+              p.join(outDir.path, '.vitepress', 'generated', 'old-theme.css'));
+          staleCss.writeAsStringSync('.old { color: red; }');
+          expect(staleCss.exists, isTrue);
+
+          var dartdoc2 = _buildVitePressDartdoc([], _testPackageDir, outDir);
+          await dartdoc2.generateDocs();
+
+          expect(staleCss.exists, isFalse,
+              reason: 'Stale .css file should be deleted');
+        } finally {
+          outDir.delete();
+        }
+      });
+
+      test('api-styles.css import is auto-patched into existing index.ts',
+          () async {
+        var outDir =
+            _resourceProvider.createSystemTemp('vitepress_patch_index.');
+        try {
+          var dartdoc1 = _buildVitePressDartdoc([], _testPackageDir, outDir);
+          await dartdoc1.generateDocs();
+
+          // Simulate an old index.ts without the api-styles.css import.
+          var indexTs = _resourceProvider
+              .getFile(p.join(outDir.path, '.vitepress', 'theme', 'index.ts'));
+          var content = indexTs.readAsStringSync();
+          content = content.replaceAll(
+              "import '../generated/api-styles.css'\n", '');
+          indexTs.writeAsStringSync(content);
+          expect(indexTs.readAsStringSync(),
+              isNot(contains('api-styles.css')));
+
+          // Re-run generation — should auto-patch index.ts.
+          var dartdoc2 = _buildVitePressDartdoc([], _testPackageDir, outDir);
+          await dartdoc2.generateDocs();
+
+          var patched = indexTs.readAsStringSync();
+          expect(patched, contains("import '../generated/api-styles.css'"),
+              reason: 'Auto-patch should restore the api-styles.css import');
         } finally {
           outDir.delete();
         }

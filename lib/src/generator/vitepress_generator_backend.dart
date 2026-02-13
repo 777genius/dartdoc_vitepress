@@ -20,6 +20,111 @@ import 'package:dartdoc_vitepress/src/model/model.dart';
 import 'package:dartdoc_vitepress/src/runtime_stats.dart';
 import 'package:path/path.dart' as p;
 
+/// Essential CSS for API documentation pages.
+///
+/// Written to `.vitepress/generated/api-styles.css` on every generation run
+/// (not a scaffold file). This ensures existing sites get style updates
+/// without requiring users to regenerate their `custom.css`.
+const _apiStylesCss = '''
+/* Member signature blocks with clickable type links */
+
+.member-signature {
+  margin: 8px 0 16px;
+}
+.member-signature pre {
+  background: var(--vp-code-block-bg);
+  border-radius: 8px;
+  padding: 12px 16px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  margin: 0;
+}
+.member-signature code {
+  font-family: var(--vp-font-family-mono);
+  font-size: var(--vp-code-font-size);
+  color: #24292E;
+  line-height: var(--vp-code-line-height);
+}
+.dark .member-signature code {
+  color: #E1E4E8;
+}
+/* Shiki-matched syntax highlighting for member signatures.
+   Colors from --shiki-light / --shiki-dark CSS variables. */
+
+/* Keywords: const, factory, final, get, set, required, typedef, true, false, null */
+.member-signature .kw {
+  color: #D73A49;
+}
+/* Unlinked types: String, int, void, dynamic, type parameters */
+.member-signature .type {
+  color: #005CC5;
+}
+/* Linked types (clickable) — same color as .type, underline on hover */
+.member-signature .type-link {
+  color: #005CC5;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, #005CC5 40%, transparent);
+  text-underline-offset: 2px;
+}
+.member-signature .type-link:hover {
+  text-decoration-color: #005CC5;
+}
+/* Function/method/constructor/field/property names */
+.member-signature .fn {
+  color: #6F42C1;
+}
+/* String literals in default values */
+.member-signature .str-lit {
+  color: #032F62;
+}
+/* Numeric literals in default values */
+.member-signature .num-lit {
+  color: #005CC5;
+}
+/* Dark mode overrides */
+.dark .member-signature .kw {
+  color: #F97583;
+}
+.dark .member-signature .type {
+  color: #79B8FF;
+}
+.dark .member-signature .type-link {
+  color: #79B8FF;
+  text-decoration-color: color-mix(in srgb, #79B8FF 40%, transparent);
+}
+.dark .member-signature .type-link:hover {
+  text-decoration-color: #79B8FF;
+}
+.dark .member-signature .fn {
+  color: #B392F0;
+}
+.dark .member-signature .str-lit {
+  color: #9ECBFF;
+}
+.dark .member-signature .num-lit {
+  color: #79B8FF;
+}
+
+/* API auto-linker — inline code that links to API docs */
+
+a.api-link {
+  text-decoration: none;
+}
+
+a.api-link code {
+  color: var(--vp-c-brand-1);
+  border-bottom: 2px solid color-mix(in srgb, var(--vp-c-brand-1) 50%, transparent);
+  padding-bottom: 1px;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+a.api-link:hover code {
+  color: var(--vp-c-brand-2);
+  border-bottom-color: var(--vp-c-brand-1);
+}
+''';
+
 /// Generator backend that produces VitePress-compatible markdown documentation.
 ///
 /// Extends [GeneratorBackend] to reuse the model traversal loop from
@@ -121,6 +226,9 @@ class VitePressGeneratorBackend extends GeneratorBackend {
     if (filePath != null) {
       _writeMarkdown(filePath, content);
     }
+
+    // Write essential API styles (always overwritten, not a scaffold file).
+    _writeMarkdown('.vitepress/generated/api-styles.css', _apiStylesCss);
 
     // Generate sidebar from the full PackageGraph.
     var sidebarContent = _sidebar.generate(packageGraph);
@@ -499,6 +607,7 @@ class VitePressGeneratorBackend extends GeneratorBackend {
     _deleteStaleInDir('api', '.md');
     _deleteStaleInDir('guide', '.md');
     _deleteStaleInDir(p.join('.vitepress', 'generated'), '.ts');
+    _deleteStaleInDir(p.join('.vitepress', 'generated'), '.css');
   }
 
   /// Recursively scans [dirRelative] under [_outputPath] and deletes files
