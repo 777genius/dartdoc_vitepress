@@ -1003,53 +1003,70 @@ String _buildSingleLineParams(List<String> requiredPositional,
   return '(${all.join(', ')})';
 }
 
-/// Builds a tall-style (multi-line) parameter signature.
+/// Builds a tall-style (multi-line) parameter signature following dart format.
 ///
 /// Each parameter is on its own line with 2-space indent and a trailing comma.
-/// Group brackets (`{`, `}`, `[`, `]`) follow dart format conventions.
+/// Group brackets (`{`, `}`, `[`, `]`) follow dart format conventions:
+/// - Only named: `({\n  p1,\n  p2,\n})`
+/// - Only optional: `([\n  p1,\n  p2,\n])`
+/// - Only required: `(\n  p1,\n  p2,\n)`
+/// - Mixed: `(\n  pos, {\n  named,\n})` — `{`/`[` on same line as last positional
 String _buildTallParameterSignature(List<String> requiredPositional,
     List<String> optionalPositional, List<String> named) {
-  final buf = StringBuffer('(\n');
+  final buf = StringBuffer();
 
   if (named.isNotEmpty && requiredPositional.isEmpty) {
-    // Only named parameters: ({...})
-    buf.write('  {');
-    // Don't put first param on same line as `{` — put it on the next line
-    buf.write('\n');
+    // Only named: ({  p1,  p2,  })
+    buf.write('({\n');
     for (final p in named) {
       buf.write('  $p,\n');
     }
-    buf.write('  }');
-  } else if (optionalPositional.isNotEmpty && requiredPositional.isEmpty) {
-    // Only optional positional: ([...])
-    buf.write('  [\n');
+    buf.write('})');
+    return buf.toString();
+  }
+
+  if (optionalPositional.isNotEmpty && requiredPositional.isEmpty) {
+    // Only optional positional: ([  p1,  p2,  ])
+    buf.write('([\n');
     for (final p in optionalPositional) {
       buf.write('  $p,\n');
     }
-    buf.write('  ]');
+    buf.write('])');
+    return buf.toString();
+  }
+
+  // Has required positional params.
+  buf.write('(\n');
+
+  if (named.isNotEmpty) {
+    // Mixed: required positional + named.
+    // All required except last, then last + { on same line.
+    for (var i = 0; i < requiredPositional.length - 1; i++) {
+      buf.write('  ${requiredPositional[i]},\n');
+    }
+    buf.write('  ${requiredPositional.last}, {\n');
+    for (final p in named) {
+      buf.write('  $p,\n');
+    }
+    buf.write('})');
+  } else if (optionalPositional.isNotEmpty) {
+    // Mixed: required positional + optional positional.
+    for (var i = 0; i < requiredPositional.length - 1; i++) {
+      buf.write('  ${requiredPositional[i]},\n');
+    }
+    buf.write('  ${requiredPositional.last}, [\n');
+    for (final p in optionalPositional) {
+      buf.write('  $p,\n');
+    }
+    buf.write('])');
   } else {
-    // Required positional (possibly mixed with optional/named).
+    // Only required positional.
     for (final p in requiredPositional) {
       buf.write('  $p,\n');
     }
-    if (named.isNotEmpty) {
-      // `{` after last positional, params on subsequent lines
-      buf.write('  {\n');
-      for (final p in named) {
-        buf.write('  $p,\n');
-      }
-      buf.write('  }');
-    } else if (optionalPositional.isNotEmpty) {
-      // `[` after last positional, params on subsequent lines
-      buf.write('  [\n');
-      for (final p in optionalPositional) {
-        buf.write('  $p,\n');
-      }
-      buf.write('  ]');
-    }
+    buf.write(')');
   }
 
-  buf.write('\n)');
   return buf.toString();
 }
 
