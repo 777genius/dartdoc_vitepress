@@ -399,6 +399,24 @@ final _htmlTagRegExp = RegExp(r'<[^>]*>');
 /// Matches a leading `# Title` line in documentation text.
 final _leadingH1RegExp = RegExp(r'^#\s+(.+?)(\r?\n|$)');
 
+/// Returns the plain-text length of [html] after stripping tags and decoding
+/// common HTML entities. Used for measuring signature length against the
+/// 80-column threshold.
+int _stripHtmlForLength(String html) {
+  return html
+      .replaceAll(_htmlTagRegExp, '')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&#60;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&#62;', '>')
+      .replaceAll('&amp;', '&')
+      .replaceAll('&#38;', '&')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#34;', '"')
+      .replaceAll('&#39;', "'")
+      .length;
+}
+
 // ---------------------------------------------------------------------------
 // Shared rendering helpers.
 // ---------------------------------------------------------------------------
@@ -915,24 +933,23 @@ String _buildLinkedCallableParamList(
 }
 
 /// Builds a linked parameter signature string for an element.
+///
+/// When [prefixLength] is provided, the total signature length is checked
+/// against an 80-column threshold. If the single-line version exceeds the
+/// limit, parameters are formatted in tall style (one per line, 2-space
+/// indent, trailing commas) following `dart format` conventions.
 String _buildLinkedParameterSignature(
-    List<Parameter> parameters, VitePressPathResolver paths) {
+    List<Parameter> parameters, VitePressPathResolver paths,
+    {int prefixLength = 0}) {
   if (parameters.isEmpty) return '()';
 
-  final parts = <String>[];
-  var inOptionalPositional = false;
-  var inNamed = false;
+  // Build individual parameter HTML strings (without group brackets).
+  final requiredPositional = <String>[];
+  final optionalPositional = <String>[];
+  final named = <String>[];
 
   for (final param in parameters) {
     final buf = StringBuffer();
-
-    if (param.isOptionalPositional && !inOptionalPositional) {
-      inOptionalPositional = true;
-      buf.write('[');
-    } else if (param.isNamed && !inNamed) {
-      inNamed = true;
-      buf.write('{');
-    }
 
     if (param.isRequiredNamed) {
       buf.write('<span class="kw">required</span> ');
@@ -948,15 +965,92 @@ String _buildLinkedParameterSignature(
       buf.write(' = ${_wrapDefaultValue(defaultValue)}');
     }
 
-    parts.add(buf.toString());
+    if (param.isNamed) {
+      named.add(buf.toString());
+    } else if (param.isOptionalPositional) {
+      optionalPositional.add(buf.toString());
+    } else {
+      requiredPositional.add(buf.toString());
+    }
   }
 
-  var result = parts.join(', ');
+  // Assemble single-line version with correct brackets.
+  final singleLine = _buildSingleLineParams(
+      requiredPositional, optionalPositional, named);
 
-  if (inOptionalPositional) result += ']';
-  if (inNamed) result += '}';
+  // Check if it fits in 80 columns.
+  if (prefixLength + _stripHtmlForLength(singleLine) <= 80) {
+    return singleLine;
+  }
 
-  return '($result)';
+  // Tall style: one parameter per line, 2-space indent, trailing commas.
+  return _buildTallParameterSignature(
+      requiredPositional, optionalPositional, named);
+}
+
+/// Assembles a single-line `(...)` parameter list with correct brackets.
+String _buildSingleLineParams(List<String> requiredPositional,
+    List<String> optionalPositional, List<String> named) {
+  final all = <String>[];
+  all.addAll(requiredPositional);
+
+  if (optionalPositional.isNotEmpty) {
+    all.add('[${optionalPositional.join(', ')}]');
+  } else if (named.isNotEmpty) {
+    all.add('{${named.join(', ')}}');
+  }
+
+  return '(${all.join(', ')})';
+}
+
+/// Builds a tall-style (multi-line) parameter signature.
+///
+/// Each parameter is on its own line with 2-space indent and a trailing comma.
+/// Group brackets (`{`, `}`, `[`, `]`) follow dart format conventions.
+String _buildTallParameterSignature(List<String> requiredPositional,
+    List<String> optionalPositional, List<String> named) {
+  final buf = StringBuffer('(\n');
+
+  if (named.isNotEmpty && requiredPositional.isEmpty) {
+    // Only named parameters: ({...})
+    buf.write('  {');
+    // Don't put first param on same line as `{` — put it on the next line
+    buf.write('\n');
+    for (final p in named) {
+      buf.write('  $p,\n');
+    }
+    buf.write('  }');
+  } else if (optionalPositional.isNotEmpty && requiredPositional.isEmpty) {
+    // Only optional positional: ([...])
+    buf.write('  [\n');
+    for (final p in optionalPositional) {
+      buf.write('  $p,\n');
+    }
+    buf.write('  ]');
+  } else {
+    // Required positional (possibly mixed with optional/named).
+    for (final p in requiredPositional) {
+      buf.write('  $p,\n');
+    }
+    if (named.isNotEmpty) {
+      // `{` after last positional, params on subsequent lines
+      buf.write('  {\n');
+      for (final p in named) {
+        buf.write('  $p,\n');
+      }
+      buf.write('  }');
+    } else if (optionalPositional.isNotEmpty) {
+      // `[` after last positional, params on subsequent lines
+      buf.write('  [\n');
+      for (final p in optionalPositional) {
+        buf.write('  $p,\n');
+      }
+      buf.write('  ]');
+    }
+  }
+
+  buf.write('\n)');
+  return buf.toString();
 }
 
 /// Builds a linked method/function signature as HTML.
@@ -971,7 +1065,10 @@ String _buildLinkedCallableSignature(
   }
 
   buf.write('<span class="fn">${_htmlEsc(plainNameWithGenerics(element))}</span>');
-  buf.write(_buildLinkedParameterSignature(element.parameters, paths));
+
+  final prefixLength = _stripHtmlForLength(buf.toString());
+  buf.write(_buildLinkedParameterSignature(element.parameters, paths,
+      prefixLength: prefixLength));
 
   return buf.toString();
 }
@@ -985,7 +1082,10 @@ String _buildLinkedConstructorSignature(
   if (constructor.isFactory) buf.write('<span class="kw">factory</span> ');
 
   buf.write('<span class="fn">${_htmlEsc(constructor.displayName)}</span>');
-  buf.write(_buildLinkedParameterSignature(constructor.parameters, paths));
+
+  final prefixLength = _stripHtmlForLength(buf.toString());
+  buf.write(_buildLinkedParameterSignature(constructor.parameters, paths,
+      prefixLength: prefixLength));
 
   return buf.toString();
 }
@@ -2277,7 +2377,9 @@ String renderTypedefPage(
     // Function typedef: show the return type and parameter types
     sig.write(_renderTypeLinked(td.modelType.returnType, paths));
     sig.write(' <span class="type">Function</span>');
-    sig.write(_buildLinkedParameterSignature(td.parameters, paths));
+    final prefixLength = _stripHtmlForLength(sig.toString());
+    sig.write(_buildLinkedParameterSignature(td.parameters, paths,
+        prefixLength: prefixLength));
   } else {
     // Type alias (ClassTypedef, GeneralizedTypedef)
     sig.write(_renderTypeLinked(td.modelType, paths));

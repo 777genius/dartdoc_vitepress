@@ -1102,6 +1102,58 @@ void main() {
         expect(content, contains('<span class="fn">'));
       });
 
+      // -- Multi-line (tall) signature formatting ----------------------------
+
+      test('short signature stays single-line', () {
+        // Apple.fromString(String s) — well under 80 chars
+        var content = _readOutput(outDir, 'api/ex/Apple.md');
+        var sigMatch = RegExp(r'Apple\.fromString[^<]*</span>\([^)]*\)')
+            .firstMatch(content);
+        expect(sigMatch, isNotNull);
+        // Should NOT contain newlines inside the signature parentheses
+        expect(sigMatch!.group(0), isNot(contains('\n')));
+      });
+
+      test('long named-param signature uses tall style', () {
+        // paintImage1 has 5 named params — way over 80 chars
+        var content = _readOutput(outDir, 'api/fake/paintImage1.md');
+        expect(content, contains('member-signature'));
+        // Should have newlines (tall format)
+        var sigMatch = RegExp(
+                r'<pre><code>([\s\S]*?)</code></pre>')
+            .firstMatch(content);
+        expect(sigMatch, isNotNull);
+        var sigContent = sigMatch!.group(1)!;
+        expect(sigContent, contains('\n'));
+        // Each param on its own line with 2-space indent and trailing comma
+        expect(sigContent, contains('">canvas</span>,'));
+        expect(sigContent, contains('">rect</span>,'));
+      });
+
+      test('long optional-positional signature uses tall style', () {
+        // topLevelFunction(int param1, bool param2, Cool coolBeans,
+        //     [double optionalPositional = 0.0]) — over 80 chars
+        var content = _readOutput(outDir, 'api/fake/topLevelFunction.md');
+        var sigMatch = RegExp(
+                r'<pre><code>([\s\S]*?)</code></pre>')
+            .firstMatch(content);
+        expect(sigMatch, isNotNull);
+        var sigContent = sigMatch!.group(1)!;
+        expect(sigContent, contains('\n'));
+        // Should have trailing commas on parameter lines
+        expect(sigContent, contains('">param1</span>,'));
+      });
+
+      test('short mixed-param signature stays single-line', () {
+        // optionalParams(first, {second, int? third}) — ~45 chars → single-line
+        var content = _readOutput(outDir, 'api/fake/LongFirstLine.md');
+        // Find the optionalParams signature
+        var sigMatch = RegExp(r'optionalParams\([^)]*\{[^}]*\}[^)]*\)')
+            .firstMatch(content);
+        expect(sigMatch, isNotNull);
+        expect(sigMatch!.group(0), isNot(contains('\n')));
+      });
+
       // -- Generic escaping in markdown links (P2-10) ------------------------
 
       test('generic class name is escaped in library overview table', () {
