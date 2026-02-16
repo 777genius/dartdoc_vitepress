@@ -255,9 +255,6 @@ class VitePressGeneratorBackend extends GeneratorBackend {
       _writeMarkdown(entry.relativePath, entry.content);
     }
 
-    // Track scaffold guide/index.md so stale cleanup doesn't delete it.
-    _expectedFiles.add('guide/index.md');
-
     var guideSidebarContent = guideGen.generateSidebar(
       guideEntries,
       isMultiPackage: isMultiPackage,
@@ -605,7 +602,7 @@ class VitePressGeneratorBackend extends GeneratorBackend {
   void _deleteStaleFiles() {
     _deletedCount = 0;
     _deleteStaleInDir('api', '.md');
-    _deleteStaleInDir('guide', '.md');
+    _deleteStaleInDir(p.join('guide', '_generated'), '.md');
     _deleteStaleInDir(p.join('.vitepress', 'generated'), '.ts');
     _deleteStaleInDir(p.join('.vitepress', 'generated'), '.css');
   }

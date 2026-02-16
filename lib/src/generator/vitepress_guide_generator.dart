@@ -121,9 +121,9 @@ class VitePressGuideGenerator {
           String outputRelative;
           if (isMultiPackage) {
             outputRelative =
-                p.posix.join('guide', package.name, relativeToDocs);
+                p.posix.join('guide', '_generated', package.name, relativeToDocs);
           } else {
-            outputRelative = p.posix.join('guide', relativeToDocs);
+            outputRelative = p.posix.join('guide', '_generated', relativeToDocs);
           }
 
           // Skip duplicate paths (e.g. same file from doc/ and docs/).
