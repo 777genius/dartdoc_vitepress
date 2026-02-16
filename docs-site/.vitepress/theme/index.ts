@@ -8,6 +8,7 @@ import { useMermaidZoom } from 'vitepress-mermaid-zoom'
 import 'vitepress-mermaid-zoom/style.css'
 import CopyOrDownloadAsMarkdownButtons from 'vitepress-plugin-llms/vitepress-components/CopyOrDownloadAsMarkdownButtons.vue'
 import './custom.css'
+import '../generated/api-styles.css'
 
 export default {
   extends: DefaultTheme,

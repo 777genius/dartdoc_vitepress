@@ -3,11 +3,8 @@ import { apiSidebar } from './generated/api-sidebar'
 import { guideSidebar } from './generated/guide-sidebar'
 import { dartpadPlugin } from './theme/plugins/dartpad'
 import { apiLinkerPlugin } from './theme/plugins/api-linker'
-// To disable llmstxt for large builds (OOM with 2000+ pages):
-//   1. Comment out llmstxt() in vite.plugins
-//   2. Comment out md.use(copyOrDownloadAsMarkdownButtons) in markdown.config
-//   3. Remove CopyOrDownloadAsMarkdownButtons import in theme/index.ts
-import llmstxt, { copyOrDownloadAsMarkdownButtons } from 'vitepress-plugin-llms'
+// import llmstxt from 'vitepress-plugin-llms'
+import { copyOrDownloadAsMarkdownButtons } from 'vitepress-plugin-llms'
 
 export default defineConfig({
   title: '{{packageName}} API',
@@ -18,9 +15,9 @@ export default defineConfig({
   ignoreDeadLinks: true,
   // Show "Last updated" timestamps on pages (requires git history).
   lastUpdated: true,
-  vite: {
-    plugins: [llmstxt()],
-  },
+  // vite: {
+  //   plugins: [llmstxt()],
+  // },
   markdown: {
     config: (md) => {
       md.use(dartpadPlugin)

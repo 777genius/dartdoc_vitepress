@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useData, withBase } from 'vitepress'
 
-const { frontmatter, page } = useData()
+const { frontmatter, page, site } = useData()
 
 const libraryDirName = computed(() => {
   const parts = page.value.relativePath.split('/')
@@ -17,13 +17,41 @@ const libraryDisplayName = computed(() => {
 })
 
 const category = computed(() => frontmatter.value.category ?? null)
+
+const pageTitle = computed(() => frontmatter.value.title ?? null)
+
+const isLibraryOverview = computed(() => {
+  return page.value.relativePath.endsWith('/index.md') &&
+    page.value.relativePath.startsWith('api/') &&
+    page.value.relativePath.split('/').length === 3
+})
+
+const packageName = computed(() => {
+  // Site title is "PackageName API" — extract just the name.
+  const title = site.value.title ?? ''
+  return title.replace(/ API$/, '') || title
+})
 </script>
 
 <template>
-  <div v-if="libraryDirName && category" class="api-breadcrumb">
+  <!-- Library overview page: PackageName › LibraryName -->
+  <div v-if="isLibraryOverview && libraryDirName" class="api-breadcrumb">
+    <a :href="withBase('/api/')" class="breadcrumb-link">{{ packageName }}</a>
+    <span class="breadcrumb-separator">›</span>
+    <span class="breadcrumb-current">{{ libraryDisplayName }}</span>
+  </div>
+
+  <!-- Element page: PackageName › LibraryName › Category › ElementTitle -->
+  <div v-else-if="libraryDirName && category" class="api-breadcrumb">
+    <a :href="withBase('/api/')" class="breadcrumb-link">{{ packageName }}</a>
+    <span class="breadcrumb-separator">›</span>
     <a :href="withBase(`/api/${libraryDirName}/`)" class="breadcrumb-link">{{ libraryDisplayName }}</a>
     <span class="breadcrumb-separator">›</span>
-    <span class="breadcrumb-current">{{ category }}</span>
+    <span class="breadcrumb-category">{{ category }}</span>
+    <template v-if="pageTitle">
+      <span class="breadcrumb-separator">›</span>
+      <span class="breadcrumb-current">{{ pageTitle }}</span>
+    </template>
   </div>
 </template>
 
@@ -36,13 +64,14 @@ const category = computed(() => frontmatter.value.category ?? null)
 }
 
 .breadcrumb-link {
-  color: var(--vp-c-text-2);
+  color: var(--vp-c-brand-1);
   text-decoration: none;
   transition: color 0.2s;
 }
 
 .breadcrumb-link:hover {
-  color: var(--vp-c-brand-1);
+  color: var(--vp-c-brand-2);
+  text-decoration: underline;
 }
 
 .breadcrumb-separator {
@@ -50,7 +79,11 @@ const category = computed(() => frontmatter.value.category ?? null)
   color: var(--vp-c-text-3);
 }
 
-.breadcrumb-current {
+.breadcrumb-category {
   color: var(--vp-c-text-2);
+}
+
+.breadcrumb-current {
+  color: var(--vp-c-text-1);
 }
 </style>

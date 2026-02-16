@@ -191,7 +191,11 @@ class VitePressSidebarGenerator {
           // Single library matching package name — no wrapper needed.
           final dirName = paths.dirNameFor(libraries.first);
           buf.writeln('    {');
-          buf.writeln("      text: '${_escapeTs(libraries.first.name)}',");
+          final libName = _escapeTs(libraries.first.name);
+          final libText = libraries.first.isDeprecated
+              ? '<s>$libName</s>'
+              : libName;
+          buf.writeln("      text: '$libText',");
           buf.writeln("      link: '/api/$dirName/',");
           buf.writeln('    },');
         } else if (categories.isNotEmpty) {
@@ -225,9 +229,13 @@ class VitePressSidebarGenerator {
           buf.writeln('      items: [');
           for (final library in otherLibs) {
             final dirName = paths.dirNameFor(library);
-            final name = displayNames[library] ?? library.name;
+            final escapedName =
+                _escapeTs(displayNames[library] ?? library.name);
+            final text = library.isDeprecated
+                ? '<s>$escapedName</s>'
+                : escapedName;
             buf.writeln('        {');
-            buf.writeln("          text: '${_escapeTs(name)}',");
+            buf.writeln("          text: '$text',");
             buf.writeln("          link: '/api/$dirName/',");
             buf.writeln('        },');
           }
@@ -244,9 +252,13 @@ class VitePressSidebarGenerator {
         final displayNames = _disambiguatedNames(libraries);
         for (final library in libraries) {
           final dirName = paths.dirNameFor(library);
-          final name = displayNames[library] ?? library.name;
+          final escapedName =
+              _escapeTs(displayNames[library] ?? library.name);
+          final text = library.isDeprecated
+              ? '<s>$escapedName</s>'
+              : escapedName;
           buf.writeln('    {');
-          buf.writeln("      text: '${_escapeTs(name)}',");
+          buf.writeln("      text: '$text',");
           buf.writeln("      link: '/api/$dirName/',");
           buf.writeln('    },');
         }
@@ -318,9 +330,10 @@ class VitePressSidebarGenerator {
           );
         } else {
           final dirName = paths.dirNameFor(lib);
-          final name = displayNames[lib] ?? lib.name;
+          final escapedName = _escapeTs(displayNames[lib] ?? lib.name);
+          final text = lib.isDeprecated ? '<s>$escapedName</s>' : escapedName;
           buf.writeln('$pad    {');
-          buf.writeln("$pad      text: '${_escapeTs(name)}',");
+          buf.writeln("$pad      text: '$text',");
           buf.writeln("$pad      link: '/api/$dirName/',");
           buf.writeln('$pad    },');
         }
@@ -354,9 +367,10 @@ class VitePressSidebarGenerator {
           );
         } else {
           final dirName = paths.dirNameFor(lib);
-          final name = displayNames[lib] ?? lib.name;
+          final escapedName = _escapeTs(displayNames[lib] ?? lib.name);
+          final text = lib.isDeprecated ? '<s>$escapedName</s>' : escapedName;
           buf.writeln('$pad    {');
-          buf.writeln("$pad      text: '${_escapeTs(name)}',");
+          buf.writeln("$pad      text: '$text',");
           buf.writeln("$pad      link: '/api/$dirName/',");
           buf.writeln('$pad    },');
         }
@@ -384,7 +398,9 @@ class VitePressSidebarGenerator {
     final base = '/api/$dirName/';
 
     buf.writeln('$pad{');
-    buf.writeln("$pad  text: '${_escapeTs(displayName ?? library.name)}',");
+    final name = _escapeTs(displayName ?? library.name);
+    final text = library.isDeprecated ? '<s>$name</s>' : name;
+    buf.writeln("$pad  text: '$text',");
     buf.writeln("$pad  base: '${_escapeTs(base)}',");
     buf.writeln('$pad  collapsed: $libraryCollapsed,');
     buf.writeln('$pad  items: [');
