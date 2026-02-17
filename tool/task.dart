@@ -12,7 +12,6 @@ import 'package:crypto/crypto.dart' as crypto;
 import 'package:dartdoc_vitepress/src/package_meta.dart';
 import 'package:path/path.dart' as path;
 import 'package:sass/sass.dart' as sass;
-import 'package:yaml/yaml.dart' as yaml;
 
 import 'src/flutter_repo.dart';
 import 'src/io_utils.dart' as io_utils;
@@ -68,15 +67,6 @@ void main(List<String> args) async {
 late String buildUsage;
 late String docUsage;
 late String serveUsage;
-
-String _getPackageVersion() {
-  var pubspec = File('pubspec.yaml');
-  if (!pubspec.existsSync()) {
-    throw StateError('Cannot find pubspec.yaml in ${Directory.current}');
-  }
-  var yamlDoc = yaml.loadYaml(pubspec.readAsStringSync()) as yaml.YamlMap;
-  return yamlDoc['version'] as String;
-}
 
 Directory get testPackage =>
     Directory(path.joinAll(['testing', 'test_package']));
