@@ -156,12 +156,11 @@ Future<void> buildRenderers() async => await SubprocessLauncher('build')
     .runStreamedDartCommand([path.join('tool', 'mustachio', 'builder.dart')]);
 
 Future<void> buildDartdocOptions() async {
-  var version = _getPackageVersion();
   var dartdocOptions = File('dartdoc_options.yaml');
   await dartdocOptions.writeAsString('''dartdoc:
   linkToSource:
     root: '.'
-    uriTemplate: 'https://github.com/777genius/dartdoc_vitepress/blob/v$version/%f%#L%l%'
+    uriTemplate: 'https://github.com/777genius/dartdoc_vitepress/blob/main/%f%#L%l%'
 ''');
 }
 
