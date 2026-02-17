@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Document page -->
+  <path d="M6 4a2 2 0 012-2h10l8 8v16a2 2 0 01-2 2H8a2 2 0 01-2-2V4z" fill="url(#page)"/>
+  <!-- Folded corner -->
+  <path d="M18 2v6a2 2 0 002 2h6" fill="url(#corner)"/>
+  <path d="M26 10l-8-8v6a2 2 0 002 2h6z" fill="url(#fold)"/>
+  <!-- Code lines -->
+  <rect x="10" y="14" width="7" height="2" rx="1" fill="#CE93D8"/>
+  <rect x="18" y="14" width="5" height="2" rx="1" fill="#AB47BC" opacity="0.7"/>
+  <rect x="11" y="19" width="10" height="2" rx="1" fill="#E1BEE7" opacity="0.5"/>
+  <rect x="11" y="24" width="6" height="2" rx="1" fill="#CE93D8" opacity="0.6"/>
+  <rect x="18" y="24" width="4" height="2" rx="1" fill="#AB47BC" opacity="0.5"/>
+  <defs>
+    <linearGradient id="page" x1="6" y1="2" x2="26" y2="28" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9C27B0"/>
+      <stop offset="1" stop-color="#6A1B9A"/>
+    </linearGradient>
+    <linearGradient id="corner" x1="18" y1="2" x2="26" y2="10" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6A1B9A"/>
+      <stop offset="1" stop-color="#9C27B0"/>
+    </linearGradient>
+    <linearGradient id="fold" x1="18" y1="2" x2="26" y2="10" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#CE93D8" stop-opacity="0.6"/>
+      <stop offset="1" stop-color="#E1BEE7" stop-opacity="0.4"/>
+    </linearGradient>
+  </defs>
+</svg>
