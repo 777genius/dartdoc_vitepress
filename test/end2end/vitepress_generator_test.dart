@@ -914,14 +914,14 @@ void main() {
 
       // -- Source link (P0-5) ------------------------------------------------
 
-      test('class page has View source link', () {
+      test('class page has sourceUrl in frontmatter', () {
         var content = _readOutput(outDir, 'api/ex/Apple.md');
-        expect(content, contains('[View source]('));
+        expect(content, contains('sourceUrl:'));
       });
 
-      test('function page has View source link', () {
+      test('function page has sourceUrl in frontmatter', () {
         var content = _readOutput(outDir, 'api/ex/testMacro.md');
-        expect(content, contains('[View source]('));
+        expect(content, contains('sourceUrl:'));
       });
 
       // -- Enum value anchor prefix (P2-11) ----------------------------------

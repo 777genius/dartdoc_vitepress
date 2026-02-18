@@ -156,6 +156,7 @@ class _MarkdownPageBuilder {
     required Object outline, // bool or List<int>
     String? category,
     String? library,
+    String? sourceUrl,
   }) {
     _buffer.writeln('---');
     // Frontmatter values are YAML strings, not Vue templates. VitePress
@@ -172,6 +173,9 @@ class _MarkdownPageBuilder {
     }
     if (library != null) {
       _buffer.writeln('library: "${yamlEscape(library)}"');
+    }
+    if (sourceUrl != null) {
+      _buffer.writeln('sourceUrl: "${yamlEscape(sourceUrl)}"');
     }
     if (outline is bool) {
       _buffer.writeln('outline: $outline');
@@ -1293,13 +1297,6 @@ String _memberAnchor(ModelElement element) {
   return name;
 }
 
-/// Renders a "View source" link for elements that have a source URL.
-void _renderSourceLink(_MarkdownPageBuilder builder, ModelElement element) {
-  if (element.hasSourceHref) {
-    builder.writeParagraph('[View source](${element.sourceHref})');
-  }
-}
-
 /// Renders annotations for an element (excluding `@Deprecated` which is
 /// handled separately as a deprecation notice).
 ///
@@ -1961,6 +1958,7 @@ String renderClassPage(
     outline: _outlineForContainer(clazz),
     category: category,
     library: library.name,
+    sourceUrl: clazz.hasSourceHref ? clazz.sourceHref : null,
   );
 
   builder.writeBreadcrumbComponent();
@@ -1985,9 +1983,6 @@ String renderClassPage(
   // Documentation
   final doc = docs.processDocumentation(clazz);
   builder.writeParagraph(doc);
-
-  // Source link
-  _renderSourceLink(builder, clazz);
 
   // Inheritance chain
   _renderInheritanceChain(builder, clazz, paths);
@@ -2027,6 +2022,7 @@ String renderEnumPage(
     outline: _outlineForContainer(enumeration),
     category: 'Enums',
     library: library.name,
+    sourceUrl: enumeration.hasSourceHref ? enumeration.sourceHref : null,
   );
 
   builder.writeBreadcrumbComponent();
@@ -2051,9 +2047,6 @@ String renderEnumPage(
   // Documentation
   final doc = docs.processDocumentation(enumeration);
   builder.writeParagraph(doc);
-
-  // Source link
-  _renderSourceLink(builder, enumeration);
 
   // Inheritance chain
   _renderInheritanceChain(builder, enumeration, paths);
@@ -2112,6 +2105,7 @@ String renderMixinPage(
     outline: _outlineForContainer(mixin_),
     category: 'Mixins',
     library: library.name,
+    sourceUrl: mixin_.hasSourceHref ? mixin_.sourceHref : null,
   );
 
   builder.writeBreadcrumbComponent();
@@ -2136,9 +2130,6 @@ String renderMixinPage(
   // Documentation
   final doc = docs.processDocumentation(mixin_);
   builder.writeParagraph(doc);
-
-  // Source link
-  _renderSourceLink(builder, mixin_);
 
   // Inheritance chain
   _renderInheritanceChain(builder, mixin_, paths);
@@ -2187,6 +2178,7 @@ String renderExtensionPage(
     outline: _outlineForContainer(ext),
     category: 'Extensions',
     library: library.name,
+    sourceUrl: ext.hasSourceHref ? ext.sourceHref : null,
   );
 
   builder.writeBreadcrumbComponent();
@@ -2207,9 +2199,6 @@ String renderExtensionPage(
   // Documentation
   final doc = docs.processDocumentation(ext);
   builder.writeParagraph(doc);
-
-  // Source link
-  _renderSourceLink(builder, ext);
 
   // All members
   _renderContainerMembers(builder, ext, docs, paths);
@@ -2235,6 +2224,7 @@ String renderExtensionTypePage(
     outline: _outlineForContainer(et),
     category: 'Extension Types',
     library: library.name,
+    sourceUrl: et.hasSourceHref ? et.sourceHref : null,
   );
 
   builder.writeBreadcrumbComponent();
@@ -2259,9 +2249,6 @@ String renderExtensionTypePage(
   // Documentation
   final doc = docs.processDocumentation(et);
   builder.writeParagraph(doc);
-
-  // Source link
-  _renderSourceLink(builder, et);
 
   // Implementers
   _renderImplementors(builder, et, paths);
@@ -2289,6 +2276,7 @@ String renderFunctionPage(
     outline: false,
     category: 'Functions',
     library: library.name,
+    sourceUrl: func.hasSourceHref ? func.sourceHref : null,
   );
 
   builder.writeBreadcrumbComponent();
@@ -2309,9 +2297,6 @@ String renderFunctionPage(
   // Documentation
   final doc = docs.processDocumentation(func);
   builder.writeParagraph(doc);
-
-  // Source link
-  _renderSourceLink(builder, func);
 
   return builder.toString();
 }
@@ -2336,6 +2321,7 @@ String renderPropertyPage(
     outline: false,
     category: sidebarKind,
     library: library.name,
+    sourceUrl: prop.hasSourceHref ? prop.sourceHref : null,
   );
 
   builder.writeBreadcrumbComponent();
@@ -2356,9 +2342,6 @@ String renderPropertyPage(
   // Documentation
   final doc = docs.processDocumentation(prop);
   builder.writeParagraph(doc);
-
-  // Source link
-  _renderSourceLink(builder, prop);
 
   return builder.toString();
 }
