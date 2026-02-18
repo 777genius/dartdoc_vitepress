@@ -1258,15 +1258,15 @@ void main() {
       });
 
       test('guide file is copied from doc/', () {
-        expect(_outputExists(outDir, 'guide/_generated/getting-started.md'), isTrue);
-        var content = _readOutput(outDir, 'guide/_generated/getting-started.md');
+        expect(_outputExists(outDir, 'guide/getting-started.md'), isTrue);
+        var content = _readOutput(outDir, 'guide/getting-started.md');
         expect(content, contains('# Getting Started'));
       });
 
       test('nested guide directory structure is preserved', () {
         expect(
-            _outputExists(outDir, 'guide/_generated/advanced/configuration.md'), isTrue);
-        var content = _readOutput(outDir, 'guide/_generated/advanced/configuration.md');
+            _outputExists(outDir, 'guide/advanced/configuration.md'), isTrue);
+        var content = _readOutput(outDir, 'guide/advanced/configuration.md');
         expect(content, contains('# Configuration'));
       });
 
@@ -1280,7 +1280,7 @@ void main() {
       test('sidebar links do not contain .md extension', () {
         var content =
             _readOutput(outDir, '.vitepress/generated/guide-sidebar.ts');
-        expect(content, isNot(contains("link: '/guide/_generated/getting-started.md'")));
+        expect(content, isNot(contains("link: '/guide/getting-started.md'")));
       });
     });
 
@@ -1496,7 +1496,7 @@ void main() {
         }
       });
 
-      test('stale .md file in guide/_generated/ is deleted', () async {
+      test('stale .md file in guide/ subdirectory is deleted', () async {
         var outDir =
             _resourceProvider.createSystemTemp('vitepress_stale_guide.');
         try {
@@ -1504,10 +1504,10 @@ void main() {
           await dartdoc1.generateDocs();
 
           _resourceProvider
-              .getFolder(p.join(outDir.path, 'guide', '_generated'))
+              .getFolder(p.join(outDir.path, 'guide', 'subdir'))
               .create();
           var staleGuide = _resourceProvider.getFile(
-              p.join(outDir.path, 'guide', '_generated', 'old-guide.md'));
+              p.join(outDir.path, 'guide', 'subdir', 'old-guide.md'));
           staleGuide.writeAsStringSync('# Old Guide\nThis is stale.');
           expect(staleGuide.exists, isTrue);
 
@@ -1515,7 +1515,7 @@ void main() {
           await dartdoc2.generateDocs();
 
           expect(staleGuide.exists, isFalse,
-              reason: 'Stale .md file in guide/_generated/ should be deleted');
+              reason: 'Stale .md file in guide/ subdirectory should be deleted');
         } finally {
           outDir.delete();
         }

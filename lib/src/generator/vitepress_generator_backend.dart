@@ -594,15 +594,15 @@ class VitePressGeneratorBackend extends GeneratorBackend {
   /// Number of stale files deleted during cleanup.
   int _deletedCount = 0;
 
-  /// Scans the output `api/` directory and deletes files not in
-  /// [_expectedFiles].
+  /// Scans output directories and deletes files not in [_expectedFiles].
   ///
-  /// Only deletes `.md` files under `api/` and `.ts` files under
-  /// `.vitepress/generated/` to avoid removing user-created files.
+  /// Only deletes `.md` files under `api/` and `guide/` subdirectories,
+  /// and `.ts`/`.css` files under `.vitepress/generated/`.
+  /// Files in the `guide/` root are preserved (scaffold and user files).
   void _deleteStaleFiles() {
     _deletedCount = 0;
     _deleteStaleInDir('api', '.md');
-    _deleteStaleInDir(p.join('guide', '_generated'), '.md');
+    _deleteStaleInDir('guide', '.md', null, true);
     _deleteStaleInDir(p.join('.vitepress', 'generated'), '.ts');
     _deleteStaleInDir(p.join('.vitepress', 'generated'), '.css');
   }
@@ -610,23 +610,31 @@ class VitePressGeneratorBackend extends GeneratorBackend {
   /// Recursively scans [dirRelative] under [_outputPath] and deletes files
   /// with [extension] that are NOT in [_expectedFiles].
   ///
+  /// When [skipRootFiles] is `true`, only files in subdirectories are
+  /// considered for deletion — files directly in [dirRelative] are preserved.
+  /// This protects scaffold and user-created files (e.g., `guide/index.md`).
+  ///
   /// Uses a [visited] set to protect against symlink loops (same approach as
   /// `_collectMarkdownFiles` in `vitepress_guide_generator.dart`).
   /// Normalizes paths to POSIX separators for cross-platform consistency.
   void _deleteStaleInDir(String dirRelative, String extension,
-      [Set<String>? visited]) {
+      [Set<String>? visited, bool skipRootFiles = false]) {
     visited ??= {};
     final dirPath = p.join(_outputPath, dirRelative);
     if (!visited.add(dirPath)) return; // Symlink loop protection.
     final folder = resourceProvider.getFolder(dirPath);
     if (!folder.exists) return;
 
+    final isRoot = visited.length == 1;
     for (final child in folder.getChildren()) {
       if (child is Folder) {
-        // Recurse into subdirectories.
+        // Recurse into subdirectories (skipRootFiles only applies to root).
         final relativePath = p.relative(child.path, from: _outputPath);
         _deleteStaleInDir(relativePath, extension, visited);
       } else {
+        // Skip files directly in the root directory when requested.
+        if (skipRootFiles && isRoot) continue;
+
         // Normalize to POSIX separators so the path matches _expectedFiles
         // (which always uses forward slashes).
         final relativePath =
