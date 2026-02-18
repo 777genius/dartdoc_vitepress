@@ -20,6 +20,13 @@ final _inlineMarkdown = RegExp(r'\*{1,2}|`');
 /// Matches hyphens or underscores for kebab/snake-case splitting.
 final _kebabSnakeDelimiter = RegExp(r'[-_]');
 
+/// Matches YAML frontmatter block delimited by `---`.
+final _frontmatterPattern = RegExp(r'^---\n([\s\S]*?)\n---', multiLine: true);
+
+/// Matches `sidebar_position: <number>` in frontmatter.
+final _sidebarPositionPattern =
+    RegExp(r'^sidebar_position:\s*(\d+)\s*$', multiLine: true);
+
 /// An entry representing a single guide markdown file.
 class GuideEntry {
   final String packageName;
@@ -32,11 +39,16 @@ class GuideEntry {
   /// The raw markdown content read from the source file.
   final String content;
 
+  /// Optional sidebar position from frontmatter `sidebar_position`.
+  /// Lower values appear first. `null` means no explicit order (sorted last).
+  final int? sidebarPosition;
+
   GuideEntry({
     required this.packageName,
     required this.relativePath,
     required this.title,
     required this.content,
+    this.sidebarPosition,
   });
 }
 
@@ -132,11 +144,14 @@ class VitePressGuideGenerator {
             continue;
           }
 
+          final sidebarPosition = _extractSidebarPosition(content);
+
           entries.add(GuideEntry(
             packageName: package.name,
             relativePath: outputRelative,
             title: title,
             content: sanitizedContent,
+            sidebarPosition: sidebarPosition,
           ));
         }
       }
@@ -178,7 +193,7 @@ class VitePressGuideGenerator {
       }
 
       for (final packageName in byPackage.keys.toList()..sort()) {
-        final packageEntries = byPackage[packageName]!;
+        final packageEntries = _sortEntries(byPackage[packageName]!);
         buffer.writeln('    {');
         buffer.writeln("      text: '${escapeForTs(packageName)}',");
         buffer.writeln('      collapsed: false,');
@@ -195,7 +210,8 @@ class VitePressGuideGenerator {
       }
     } else {
       // Flat list.
-      for (final entry in entries) {
+      final sorted = _sortEntries(entries);
+      for (final entry in sorted) {
         final link = '/${entry.relativePath}'.replaceAll('.md', '');
         buffer.writeln(
           "    { text: '${escapeForTs(entry.title)}', link: '${escapeForTs(link)}' },",
@@ -258,6 +274,29 @@ class VitePressGuideGenerator {
   /// Strips inline markdown formatting from a heading title.
   static String _stripInlineMarkdown(String title) =>
       title.replaceAll(_inlineMarkdown, '').trim();
+
+  /// Extracts `sidebar_position` from YAML frontmatter if present.
+  static int? _extractSidebarPosition(String content) {
+    final fmMatch = _frontmatterPattern.firstMatch(content);
+    if (fmMatch == null) return null;
+    final posMatch = _sidebarPositionPattern.firstMatch(fmMatch.group(1)!);
+    if (posMatch == null) return null;
+    return int.tryParse(posMatch.group(1)!);
+  }
+
+  /// Sorts guide entries: by `sidebarPosition` first (ascending),
+  /// entries without position go last, sorted by title alphabetically.
+  static List<GuideEntry> _sortEntries(List<GuideEntry> entries) {
+    return entries.toList()
+      ..sort((a, b) {
+        final ap = a.sidebarPosition;
+        final bp = b.sidebarPosition;
+        if (ap != null && bp != null) return ap.compareTo(bp);
+        if (ap != null) return -1;
+        if (bp != null) return 1;
+        return a.title.compareTo(b.title);
+      });
+  }
 
   /// Recursively collects all `.md` files in [folder].
   ///
