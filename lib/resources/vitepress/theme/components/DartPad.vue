@@ -114,7 +114,7 @@ onBeforeUnmount(() => {
       </div>
       <div class="dartpad-toolbar">
         <button class="dartpad-btn dartpad-run" @click="openPlayground" title="Run in DartPad" aria-label="Run in DartPad">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          Run <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
         </button>
         <button
           class="dartpad-btn dartpad-copy"
@@ -137,14 +137,19 @@ onBeforeUnmount(() => {
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
-        <iframe
-          ref="iframe"
-          :src="dartpadUrl"
-          :style="{ height: props.height + 'px' }"
-          class="dartpad-iframe"
-          sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-          allow="clipboard-write"
-        ></iframe>
+        <div class="dartpad-iframe-container" :style="{ height: props.height + 'px' }">
+          <div v-if="loading" class="dartpad-loader">
+            <span class="dartpad-spinner"></span>
+            <span class="dartpad-loader-text">Loading DartPad…</span>
+          </div>
+          <iframe
+            ref="iframe"
+            :src="dartpadUrl"
+            class="dartpad-iframe"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+            allow="clipboard-write"
+          ></iframe>
+        </div>
       </div>
     </template>
   </div>

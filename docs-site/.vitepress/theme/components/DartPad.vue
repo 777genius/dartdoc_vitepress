@@ -114,7 +114,7 @@ onBeforeUnmount(() => {
       </div>
       <div class="dartpad-toolbar">
         <button class="dartpad-btn dartpad-run" @click="openPlayground" title="Run in DartPad">
-          <span class="dartpad-btn-icon">&#9654;</span> Run
+          Run <span class="dartpad-btn-icon">&#9654;</span>
         </button>
         <button
           class="dartpad-btn dartpad-copy"
@@ -136,14 +136,19 @@ onBeforeUnmount(() => {
             Close
           </button>
         </div>
-        <iframe
-          ref="iframe"
-          :src="dartpadUrl"
-          :style="{ height: props.height + 'px' }"
-          class="dartpad-iframe"
-          sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-          allow="clipboard-write"
-        ></iframe>
+        <div class="dartpad-iframe-container" :style="{ height: props.height + 'px' }">
+          <div v-if="loading" class="dartpad-loader">
+            <span class="dartpad-spinner"></span>
+            <span class="dartpad-loader-text">Loading DartPad…</span>
+          </div>
+          <iframe
+            ref="iframe"
+            :src="dartpadUrl"
+            class="dartpad-iframe"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+            allow="clipboard-write"
+          ></iframe>
+        </div>
       </div>
     </template>
   </div>
