@@ -4,7 +4,6 @@ import { guideSidebar } from './generated/guide-sidebar'
 import { dartpadPlugin } from './theme/plugins/dartpad'
 import { apiLinkerPlugin } from './theme/plugins/api-linker'
 // import llmstxt from 'vitepress-plugin-llms'
-import { copyOrDownloadAsMarkdownButtons } from 'vitepress-plugin-llms'
 
 export default defineConfig({
   title: '{{packageName}} API',
@@ -22,7 +21,6 @@ export default defineConfig({
     config: (md) => {
       md.use(dartpadPlugin)
       md.use(apiLinkerPlugin)
-      md.use(copyOrDownloadAsMarkdownButtons)
     },
   },
   themeConfig: {
