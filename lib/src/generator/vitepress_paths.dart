@@ -6,6 +6,7 @@ import 'package:dartdoc_vitepress/src/comment_references/parser.dart' show opera
 import 'package:dartdoc_vitepress/src/model/model.dart';
 import 'package:dartdoc_vitepress/src/model_utils.dart';
 import 'package:meta/meta.dart';
+import 'package:path/path.dart' as p;
 
 // ---------------------------------------------------------------------------
 // Pre-compiled regular expressions for sanitization methods.
@@ -288,6 +289,25 @@ class VitePressPathResolver {
     }
 
     return null;
+  }
+
+  /// The URL of the page currently being rendered.
+  ///
+  /// Set this before rendering a page so that [relativeUrlFor] can compute
+  /// relative paths for HTML type-links (VitePress does not rewrite `<a href>`
+  /// in raw HTML blocks, so absolute paths miss the configured `base`).
+  String? currentPageUrl;
+
+  /// Like [urlFor] but returns a relative path from [currentPageUrl].
+  ///
+  /// Falls back to the absolute path when [currentPageUrl] is not set.
+  String? relativeUrlFor(Documentable element) {
+    final url = urlFor(element);
+    if (url == null) return null;
+    if (currentPageUrl == null) return url;
+    final fromDir = p.posix.dirname(currentPageUrl!);
+    final rel = p.posix.relative(url, from: fromDir);
+    return rel.startsWith('.') ? rel : './$rel';
   }
 
   /// Returns the anchor ID for a member element.

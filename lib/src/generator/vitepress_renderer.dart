@@ -831,7 +831,7 @@ String _buildLinkedExtensionTypeDeclaration(
 String _renderTypeLinked(ElementType type, VitePressPathResolver paths) {
   // DefinedElementType (includes ParameterizedElementType, TypeParameterElementType)
   if (type is DefinedElementType) {
-    final url = paths.urlFor(type.modelElement);
+    final url = paths.relativeUrlFor(type.modelElement);
     final name = _htmlEsc(type.name);
     final buf = StringBuffer();
 
@@ -1701,6 +1701,7 @@ String renderPackagePage(
   VitePressDocProcessor docs,
 ) {
   final builder = _MarkdownPageBuilder();
+  paths.currentPageUrl = paths.urlFor(package);
 
   builder.writeFrontmatter(
     title: package.name,
@@ -1841,6 +1842,7 @@ String renderLibraryPage(
   VitePressDocProcessor docs,
 ) {
   final builder = _MarkdownPageBuilder();
+  paths.currentPageUrl = paths.urlFor(library);
 
   builder.writeFrontmatter(
     title: library.name,
@@ -1948,6 +1950,7 @@ String renderClassPage(
   VitePressDocProcessor docs,
 ) {
   final builder = _MarkdownPageBuilder();
+  paths.currentPageUrl = paths.urlFor(clazz);
   final nameWithGenerics = plainNameWithGenerics(clazz);
   final category = clazz.isErrorOrException ? 'Exceptions' : 'Classes';
 
@@ -2013,6 +2016,7 @@ String renderEnumPage(
   VitePressDocProcessor docs,
 ) {
   final builder = _MarkdownPageBuilder();
+  paths.currentPageUrl = paths.urlFor(enumeration);
   final nameWithGenerics = plainNameWithGenerics(enumeration);
 
   builder.writeFrontmatter(
@@ -2096,6 +2100,7 @@ String renderMixinPage(
   VitePressDocProcessor docs,
 ) {
   final builder = _MarkdownPageBuilder();
+  paths.currentPageUrl = paths.urlFor(mixin_);
   final nameWithGenerics = plainNameWithGenerics(mixin_);
 
   builder.writeFrontmatter(
@@ -2169,6 +2174,7 @@ String renderExtensionPage(
   VitePressDocProcessor docs,
 ) {
   final builder = _MarkdownPageBuilder();
+  paths.currentPageUrl = paths.urlFor(ext);
   final nameWithGenerics = plainNameWithGenerics(ext);
 
   builder.writeFrontmatter(
@@ -2215,6 +2221,7 @@ String renderExtensionTypePage(
   VitePressDocProcessor docs,
 ) {
   final builder = _MarkdownPageBuilder();
+  paths.currentPageUrl = paths.urlFor(et);
   final nameWithGenerics = plainNameWithGenerics(et);
 
   builder.writeFrontmatter(
@@ -2267,6 +2274,7 @@ String renderFunctionPage(
   VitePressDocProcessor docs,
 ) {
   final builder = _MarkdownPageBuilder();
+  paths.currentPageUrl = paths.urlFor(func);
   final nameWithGenerics = plainNameWithGenerics(func);
 
   builder.writeFrontmatter(
@@ -2309,6 +2317,7 @@ String renderPropertyPage(
   VitePressDocProcessor docs,
 ) {
   final builder = _MarkdownPageBuilder();
+  paths.currentPageUrl = paths.urlFor(prop);
 
   final kindLabel = prop.isConst ? 'constant' : 'property';
 
@@ -2354,6 +2363,7 @@ String renderTypedefPage(
   VitePressDocProcessor docs,
 ) {
   final builder = _MarkdownPageBuilder();
+  paths.currentPageUrl = paths.urlFor(td);
   final nameWithGenerics = plainNameWithGenerics(td);
 
   builder.writeFrontmatter(
@@ -2406,6 +2416,7 @@ String renderCategoryPage(
   VitePressDocProcessor docs,
 ) {
   final builder = _MarkdownPageBuilder();
+  paths.currentPageUrl = paths.urlFor(cat);
 
   builder.writeFrontmatter(
     title: cat.name,
