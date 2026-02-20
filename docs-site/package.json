@@ -8,9 +8,11 @@
     "preview": "vitepress preview"
   },
   "devDependencies": {
+    "mermaid": "^11.12.3",
     "vitepress": "^1.6.4",
     "vitepress-codeblock-collapse": "^1.0.0",
     "vitepress-mermaid-zoom": "^1.0.1",
-    "vitepress-plugin-llms": "^1.11.0"
+    "vitepress-plugin-llms": "^1.11.0",
+    "vitepress-plugin-mermaid": "^2.0.17"
   }
 }
