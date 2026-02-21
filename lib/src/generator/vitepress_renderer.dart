@@ -189,12 +189,6 @@ class _MarkdownPageBuilder {
     _buffer.writeln();
   }
 
-  /// Writes a Vue breadcrumb component that reads category from frontmatter.
-  void writeBreadcrumbComponent() {
-    _buffer.writeln('<ApiBreadcrumb />');
-    _buffer.writeln();
-  }
-
   /// Writes a top-level heading (h1) with optional badges.
   void writeH1(
     String text, {
@@ -1850,7 +1844,6 @@ String renderLibraryPage(
     outline: [2, 3],
   );
 
-  builder.writeBreadcrumbComponent();
 
   builder.writeH1(library.name);
 
@@ -1964,7 +1957,6 @@ String renderClassPage(
     sourceUrl: clazz.hasSourceHref ? clazz.sourceHref : null,
   );
 
-  builder.writeBreadcrumbComponent();
 
   builder.writeH1(
     nameWithGenerics,
@@ -2029,7 +2021,6 @@ String renderEnumPage(
     sourceUrl: enumeration.hasSourceHref ? enumeration.sourceHref : null,
   );
 
-  builder.writeBreadcrumbComponent();
 
   builder.writeH1(
     nameWithGenerics,
@@ -2113,7 +2104,6 @@ String renderMixinPage(
     sourceUrl: mixin_.hasSourceHref ? mixin_.sourceHref : null,
   );
 
-  builder.writeBreadcrumbComponent();
 
   builder.writeH1(
     nameWithGenerics,
@@ -2187,7 +2177,6 @@ String renderExtensionPage(
     sourceUrl: ext.hasSourceHref ? ext.sourceHref : null,
   );
 
-  builder.writeBreadcrumbComponent();
 
   builder.writeH1(nameWithGenerics, deprecated: ext.isDeprecated);
 
@@ -2234,7 +2223,6 @@ String renderExtensionTypePage(
     sourceUrl: et.hasSourceHref ? et.sourceHref : null,
   );
 
-  builder.writeBreadcrumbComponent();
 
   builder.writeH1(
     nameWithGenerics,
@@ -2287,7 +2275,6 @@ String renderFunctionPage(
     sourceUrl: func.hasSourceHref ? func.sourceHref : null,
   );
 
-  builder.writeBreadcrumbComponent();
 
   builder.writeH1(nameWithGenerics, deprecated: func.isDeprecated);
 
@@ -2333,7 +2320,6 @@ String renderPropertyPage(
     sourceUrl: prop.hasSourceHref ? prop.sourceHref : null,
   );
 
-  builder.writeBreadcrumbComponent();
 
   builder.writeH1(prop.name, deprecated: prop.isDeprecated);
 
@@ -2375,7 +2361,6 @@ String renderTypedefPage(
     library: library.name,
   );
 
-  builder.writeBreadcrumbComponent();
 
   builder.writeH1(nameWithGenerics, deprecated: td.isDeprecated);
 

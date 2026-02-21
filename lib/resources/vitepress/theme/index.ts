@@ -1,4 +1,4 @@
-import { computed } from 'vue'
+import { computed, h } from 'vue'
 import DefaultTheme from 'vitepress/theme'
 import type { Theme } from 'vitepress'
 import { useData } from 'vitepress'
@@ -13,9 +13,13 @@ import ApiBreadcrumb from './components/ApiBreadcrumb.vue'
 
 export default {
   extends: DefaultTheme,
+  Layout() {
+    return h(DefaultTheme.Layout, null, {
+      'doc-before': () => h(ApiBreadcrumb),
+    })
+  },
   enhanceApp({ app }) {
     app.component('DartPad', DartPad)
-    app.component('ApiBreadcrumb', ApiBreadcrumb)
   },
   setup() {
     const { page } = useData()

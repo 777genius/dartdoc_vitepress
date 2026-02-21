@@ -17,11 +17,11 @@ export default {
   Layout() {
     return h(DefaultTheme.Layout, null, {
       'home-hero-image': () => h(HeroDoc),
+      'doc-before': () => h(ApiBreadcrumb),
     })
   },
   enhanceApp({ app }) {
     app.component('DartPad', DartPad)
-    app.component('ApiBreadcrumb', ApiBreadcrumb)
   },
   setup() {
     const { page } = useData()
