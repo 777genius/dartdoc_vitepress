@@ -6,5 +6,6 @@ This is a fork of [dart-lang/dartdoc](https://github.com/dart-lang/dartdoc) that
 
 ## Topics
 
-- [Dart Documentation Comment Specification](./_generated/dart_documentation_comment_specification.md)
-- [Directives](./_generated/directives.md)
+- [DartPad Embeds](./dartpad-embeds.md)
+- [Dart Documentation Comment Specification](./dart_documentation_comment_specification.md)
+- [Directives](./directives.md)
