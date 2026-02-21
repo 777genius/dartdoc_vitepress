@@ -10,6 +10,7 @@ import './custom.css'
 import '../generated/api-styles.css'
 import DartPad from './components/DartPad.vue'
 import ApiBreadcrumb from './components/ApiBreadcrumb.vue'
+import { useOutlineCollapse } from './composables/useOutlineCollapse'
 
 export default {
   extends: DefaultTheme,
@@ -26,5 +27,6 @@ export default {
     const pagePath = computed(() => page.value.relativePath)
     useCodeblockCollapse(pagePath)
     useMermaidZoom(pagePath)
+    useOutlineCollapse()
   }
 } satisfies Theme

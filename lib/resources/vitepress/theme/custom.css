@@ -173,3 +173,29 @@
     flex-wrap: wrap;
   }
 }
+
+/* Collapsible outline toggles */
+.outline-section-toggle {
+  display: inline-block;
+  width: 14px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 11px;
+  color: var(--vp-c-text-3);
+  transition: color 0.2s;
+  flex-shrink: 0;
+}
+
+.outline-section-toggle:hover {
+  color: var(--vp-c-brand-1);
+}
+
+.VPDocAsideOutline nav > ul > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+
+.VPDocAsideOutline nav > ul > li > ul {
+  width: 100%;
+}

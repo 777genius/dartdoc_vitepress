@@ -157,6 +157,7 @@ class _MarkdownPageBuilder {
     String? category,
     String? library,
     String? sourceUrl,
+    bool outlineCollapsible = false,
   }) {
     _buffer.writeln('---');
     // Frontmatter values are YAML strings, not Vue templates. VitePress
@@ -181,6 +182,9 @@ class _MarkdownPageBuilder {
       _buffer.writeln('outline: $outline');
     } else if (outline is List<int>) {
       _buffer.writeln('outline: [${outline.join(', ')}]');
+    }
+    if (outlineCollapsible) {
+      _buffer.writeln('outlineCollapsible: true');
     }
     _buffer.writeln('editLink: false');
     _buffer.writeln('prev: false');
@@ -1659,15 +1663,12 @@ void _renderMethodMember(
 // Dynamic outline helper.
 // ---------------------------------------------------------------------------
 
-/// Computes the VitePress `outline` frontmatter value for a container page.
+/// Counts public members of a container for outline collapsibility.
 ///
 /// When a container (class, enum, mixin, extension, extension type) has more
-/// than [threshold] public members, h3 member headings are excluded from the
-/// right-hand TOC to prevent overflow (e.g. WebGL with 600+ members).
-///
-/// Returns `[2, 2]` (h2 only) for large containers and `[2, 3]` (h2 + h3)
-/// for smaller ones.
-List<int> _outlineForContainer(Container container, {int threshold = 50}) {
+/// than [threshold] public members, the outline is marked as collapsible so
+/// the right-hand TOC starts with h3 items collapsed (with expand toggles).
+bool _isOutlineCollapsible(Container container, {int threshold = 50}) {
   final memberCount =
       (container.hasPublicConstructors
           ? container.publicConstructorsSorted.length
@@ -1679,7 +1680,7 @@ List<int> _outlineForContainer(Container container, {int threshold = 50}) {
       container.publicVariableStaticFieldsSorted.length +
       container.publicStaticMethodsSorted.length +
       container.publicConstantFieldsSorted.length;
-  return memberCount > threshold ? [2, 2] : [2, 3];
+  return memberCount > threshold;
 }
 
 // ---------------------------------------------------------------------------
@@ -1951,7 +1952,8 @@ String renderClassPage(
     title: nameWithGenerics,
     description:
         'API documentation for $nameWithGenerics class from ${library.name}',
-    outline: _outlineForContainer(clazz),
+    outline: [2, 3],
+    outlineCollapsible: _isOutlineCollapsible(clazz),
     category: category,
     library: library.name,
     sourceUrl: clazz.hasSourceHref ? clazz.sourceHref : null,
@@ -2015,7 +2017,8 @@ String renderEnumPage(
     title: nameWithGenerics,
     description:
         'API documentation for $nameWithGenerics enum from ${library.name}',
-    outline: _outlineForContainer(enumeration),
+    outline: [2, 3],
+    outlineCollapsible: _isOutlineCollapsible(enumeration),
     category: 'Enums',
     library: library.name,
     sourceUrl: enumeration.hasSourceHref ? enumeration.sourceHref : null,
@@ -2098,7 +2101,8 @@ String renderMixinPage(
     title: nameWithGenerics,
     description:
         'API documentation for $nameWithGenerics mixin from ${library.name}',
-    outline: _outlineForContainer(mixin_),
+    outline: [2, 3],
+    outlineCollapsible: _isOutlineCollapsible(mixin_),
     category: 'Mixins',
     library: library.name,
     sourceUrl: mixin_.hasSourceHref ? mixin_.sourceHref : null,
@@ -2171,7 +2175,8 @@ String renderExtensionPage(
     title: nameWithGenerics,
     description:
         'API documentation for $nameWithGenerics extension from ${library.name}',
-    outline: _outlineForContainer(ext),
+    outline: [2, 3],
+    outlineCollapsible: _isOutlineCollapsible(ext),
     category: 'Extensions',
     library: library.name,
     sourceUrl: ext.hasSourceHref ? ext.sourceHref : null,
@@ -2217,7 +2222,8 @@ String renderExtensionTypePage(
     title: nameWithGenerics,
     description: 'API documentation for $nameWithGenerics extension type '
         'from ${library.name}',
-    outline: _outlineForContainer(et),
+    outline: [2, 3],
+    outlineCollapsible: _isOutlineCollapsible(et),
     category: 'Extension Types',
     library: library.name,
     sourceUrl: et.hasSourceHref ? et.sourceHref : null,
