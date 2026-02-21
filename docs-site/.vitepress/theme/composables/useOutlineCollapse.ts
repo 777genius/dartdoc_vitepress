@@ -1,4 +1,4 @@
-import { watch, nextTick } from 'vue'
+import { watch, nextTick, onMounted } from 'vue'
 import { useData } from 'vitepress'
 
 /**
@@ -9,9 +9,11 @@ import { useData } from 'vitepress'
 export function useOutlineCollapse() {
   const { frontmatter, page } = useData()
 
-  watch(() => page.value.relativePath, () => {
-    nextTick(() => setTimeout(applyCollapse, 150))
-  }, { immediate: true })
+  onMounted(() => {
+    watch(() => page.value.relativePath, () => {
+      nextTick(() => setTimeout(applyCollapse, 150))
+    }, { immediate: true })
+  })
 
   function applyCollapse() {
     // Clean up previous toggles
